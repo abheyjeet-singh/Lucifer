@@ -55,6 +55,7 @@ module.exports = {
 
         // 2. Build Pages
         const pages = [];
+        const COMMANDS_PER_PAGE = 10; // Limit to 10 commands per page to avoid the 25 field limit
 
         // Page 0: Home
         pages.push(createEmbed({
@@ -69,52 +70,59 @@ module.exports = {
             thumbnail: client.user.displayAvatarURL({ size: 256 }),
         }));
 
-        // Category Pages
+        // Category Pages (Chunked)
         for (const [key, val] of Object.entries(categoryNames)) {
             const cmds = categories[key] || [];
-            pages.push(createEmbed({
-                title: val.title,
-                description: val.desc,
-                fields: cmds.map(c => ({
-                    name: `\`${prefix}${c.name}\``,
-                    value: `> ${c.description}`,
-                    inline: true
-                })),
-                color: THEME.celestial,
-                footer: { text: `🔥 Page ${pages.length} of ${Object.keys(categoryNames).length + 1}` }
-            }));
+            
+            // Split commands into chunks of 10
+            for (let i = 0; i < cmds.length; i += COMMANDS_PER_PAGE) {
+                const chunk = cmds.slice(i, i + COMMANDS_PER_PAGE);
+                const partNum = Math.floor(i / COMMANDS_PER_PAGE) + 1;
+                const totalParts = Math.ceil(cmds.length / COMMANDS_PER_PAGE);
+                
+                pages.push(createEmbed({
+                    title: val.title + (totalParts > 1 ? ` (Part ${partNum}/${totalParts})` : ''),
+                    description: val.desc,
+                    fields: chunk.map(c => ({
+                        name: `\`${prefix}${c.name}\``,
+                        value: `> ${c.description}`,
+                        inline: true
+                    })),
+                    color: THEME.celestial,
+                }));
+            }
         }
+
+        // Add correct page numbers to footers
+        const totalPages = pages.length;
+        pages.forEach((p, index) => {
+            p.setFooter({ text: `🔥 Page ${index + 1} of ${totalPages}` });
+        });
 
         // 3. Build Navigation Buttons
         const getButtons = (currentPage) => {
             return new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId('page_0')
+                    .setCustomId('prev_page')
+                    .setLabel('◀️ Previous')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentPage === 0),
+                new ButtonBuilder()
+                    .setCustomId('home_page')
                     .setLabel('🏠 Home')
                     .setStyle(currentPage === 0 ? ButtonStyle.Primary : ButtonStyle.Secondary)
                     .setDisabled(currentPage === 0),
                 new ButtonBuilder()
-                    .setCustomId('page_1')
-                    .setLabel('⚔️ Mod')
-                    .setStyle(currentPage === 1 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-                    .setDisabled(currentPage === 1),
-                new ButtonBuilder()
-                    .setCustomId('page_2')
-                    .setLabel('🛠️ Utility')
-                    .setStyle(currentPage === 2 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-                    .setDisabled(currentPage === 2),
-                new ButtonBuilder()
-                    .setCustomId('page_3')
-                    .setLabel('🎉 Fun')
-                    .setStyle(currentPage === 3 ? ButtonStyle.Primary : ButtonStyle.Secondary)
-                    .setDisabled(currentPage === 3),
+                    .setCustomId('next_page')
+                    .setLabel('▶️ Next')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentPage === totalPages - 1)
             );
         };
 
         // 4. Send Initial Message
         let currentPage = 0;
-        const replyMethod = context.reply ? 'reply' : 'editReply';
-        const msg = await context[replyMethod]({ 
+        const msg = await context.reply({ 
             embeds: [pages[currentPage]], 
             components: [getButtons(currentPage)],
             fetchReply: true 
@@ -125,12 +133,14 @@ module.exports = {
         const collector = msg.createMessageComponentCollector({ 
             componentType: ComponentType.Button, 
             filter, 
-            time: 60000 // 1 minute idle timeout
+            time: 120000 // 2 minute idle timeout
         });
 
         collector.on('collect', async i => {
-            const page = parseInt(i.customId.split('_')[1]);
-            currentPage = page;
+            if (i.customId === 'prev_page') currentPage--;
+            else if (i.customId === 'next_page') currentPage++;
+            else if (i.customId === 'home_page') currentPage = 0;
+            
             await i.update({ 
                 embeds: [pages[currentPage]], 
                 components: [getButtons(currentPage)] 
