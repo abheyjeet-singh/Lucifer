@@ -1,6 +1,9 @@
 const { createEmbed, THEME } = require('../utils/embeds');
 const { getGuildSettings } = require('../database/db');
 
+// ── Editsnipe Cache ──
+const editSnipes = new Map();
+
 module.exports = {
     once: false,
     async execute(oldMessage, newMessage, client) {
@@ -11,7 +14,6 @@ module.exports = {
         if (oldMessage.content === newMessage.content) return;
 
         // Handle Partial Messages (sent before bot started)
-        // If oldMessage is partial, we don't know who sent it, so we grab data from the newMessage
         if (oldMessage.partial) {
             try { await oldMessage.fetch(); } catch { return; }
         }
@@ -19,6 +21,17 @@ module.exports = {
         const author = oldMessage.author || newMessage.author;
         if (!author || author.bot) return; // Ignore bots or completely unknown authors
 
+        // ── 1. Save to Editsnipe Cache ──
+        editSnipes.set(oldMessage.channel.id, {
+            oldContent: oldMessage.content,
+            newContent: newMessage.content,
+            author: author,
+            createdAt: oldMessage.createdAt
+        });
+        // Delete from memory after 5 minutes to save RAM
+        setTimeout(() => editSnipes.delete(oldMessage.channel.id), 300000);
+
+        // ── 2. Send to Log Channel (Your Existing Code) ──
         const settings = getGuildSettings(oldMessage.guild.id);
         if (!settings.log_channel_id) return;
         const logChannel = oldMessage.guild.channels.cache.get(settings.log_channel_id);
@@ -52,4 +65,7 @@ module.exports = {
             console.error("Failed to send edit log:", error.message);
         }
     },
+    
+    // Export function so commands can read the cache
+    getEditSnipes: () => editSnipes 
 };
