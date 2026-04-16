@@ -42,7 +42,8 @@ function ensureGuild(db, guildId) {
             counting_channel_id: null,
             sticky_roles_enabled: false,
             sticky_roles_ignore: [],
-            auto_responders: []
+            auto_responders: [],
+            ai_mention_enabled: false
         };
     }
     const g = db.guilds[guildId];
@@ -63,6 +64,7 @@ function ensureGuild(db, guildId) {
     if (g.sticky_roles_enabled === undefined) g.sticky_roles_enabled = false;
     if (!g.sticky_roles_ignore) g.sticky_roles_ignore = [];
     if (!g.auto_responders) g.auto_responders = [];
+    if (g.ai_mention_enabled === undefined) g.ai_mention_enabled = false;
     saveDB(db); return db;
 }
 
@@ -173,7 +175,6 @@ function getStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.stic
 function removeStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return; delete db.sticky_user_roles[guildId][userId]; saveDB(db); }
 function removeStickyRolesConfig(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = false; db.guilds[guildId].sticky_roles_ignore = []; delete db.sticky_user_roles[guildId]; saveDB(db); }
 
-// ── AUTO RESPONDER ──
 function getAutoResponders(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].auto_responders || []; }
 function addAutoResponder(guildId, trigger, response, matchType) {
     const db = loadDB(); ensureGuild(db, guildId);
@@ -194,6 +195,10 @@ function clearAutoResponders(guildId) {
     saveDB(db);
 }
 
+// ── AI MENTION MODE ──
+function isAiMentionEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].ai_mention_enabled || false; }
+function setAiMentionEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].ai_mention_enabled = enabled; saveDB(db); }
+
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
     addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
@@ -213,5 +218,6 @@ module.exports = {
     addGiveaway, removeGiveaway, getActiveGiveaways,
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
     saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
-    getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders
+    getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders,
+    isAiMentionEnabled, setAiMentionEnabled
 };

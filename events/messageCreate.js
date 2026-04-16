@@ -1,4 +1,4 @@
-const { getPrefix, getAutomod, addWarning, getAutoTranslateLang, isAfk, removeAfk, getAutoDelete, getCounting, updateCounting, getSticky, setSticky, getAutoResponders } = require('../database/db');
+const { getPrefix, getAutomod, addWarning, getAutoTranslateLang, isAfk, removeAfk, getAutoDelete, getCounting, updateCounting, getSticky, setSticky, getAutoResponders, isAiMentionEnabled, getAiUsage, incrementAiUsage, AI_DAILY_LIMIT } = require('../database/db');
 const { hasPermission } = require('../utils/permissions');
 const { createEmbed, THEME } = require('../utils/embeds');
 const translate = require('@iamtraction/google-translate');
@@ -17,17 +17,10 @@ module.exports = {
             const lowerContent = message.content.toLowerCase();
             for (const ar of autoResponders) {
                 let matched = false;
-                if (ar.match_type === 'exact') {
-                    matched = lowerContent === ar.trigger;
-                } else if (ar.match_type === 'startswith') {
-                    matched = lowerContent.startsWith(ar.trigger);
-                } else {
-                    matched = lowerContent.includes(ar.trigger);
-                }
-                if (matched) {
-                    await message.reply(ar.response).catch(() => {});
-                    break;
-                }
+                if (ar.match_type === 'exact') matched = lowerContent === ar.trigger;
+                else if (ar.match_type === 'startswith') matched = lowerContent.startsWith(ar.trigger);
+                else matched = lowerContent.includes(ar.trigger);
+                if (matched) { await message.reply(ar.response).catch(() => {}); break; }
             }
         }
 
@@ -48,9 +41,7 @@ module.exports = {
 
         // ── 3. Auto-Delete Check ──
         const deleteSeconds = getAutoDelete(message.channel.id);
-        if (deleteSeconds) {
-            setTimeout(() => { message.deletable ? message.delete().catch(() => {}) : null; }, deleteSeconds * 1000);
-        }
+        if (deleteSeconds) { setTimeout(() => { message.deletable ? message.delete().catch(() => {}) : null; }, deleteSeconds * 1000); }
 
         // ── 4. Counting Channel Check ──
         const settings = require('../database/db').getGuildSettings(message.guild.id);
@@ -90,20 +81,80 @@ module.exports = {
         const targetLang = getAutoTranslateLang(message.guild.id, message.channel.id);
         if (targetLang && message.content.length > 0) { try { const result = await translate(message.content, { to: targetLang }); if (result.from.language.iso && result.from.language.iso !== targetLang) { await message.reply({ embeds: [createEmbed({ description: `🌐 **${targetLang.toUpperCase()} Translation** (from ${result.from.language.iso.toUpperCase()}):\n> ${result.text.substring(0, 2048)}`, color: THEME.success })] }); } } catch {} }
 
+        // ════════════════════════════════════════
+        // ── LUCIFER AI — MENTION + SEQUENTIAL CHAT ──
+        // ════════════════════════════════════════
+        const botMentionRegex = new RegExp(`^<@!?${client.user.id}>`);
+        const isBotMentioned = botMentionRegex.test(message.content) || message.mentions.has(client.user.id);
+        const isAiOn = isAiMentionEnabled(message.guild.id);
+
+        let isReplyToBot = false;
+        if (message.reference && message.reference.messageId && isAiOn) {
+            try {
+                const referencedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+                if (referencedMsg && referencedMsg.author.id === client.user.id) {
+                    // Inline require — only loads AI module when actually needed
+                    const { getThread } = require('../utils/luciferAI');
+                    const thread = getThread(message.channel.id, message.author.id);
+                    if (thread) isReplyToBot = true;
+                }
+            } catch {}
+        }
+
+        if ((isBotMentioned || isReplyToBot) && isAiOn) {
+            const currentUsage = getAiUsage(message.guild.id);
+            if (currentUsage >= AI_DAILY_LIMIT) {
+                return message.reply(`🔥 The gates of knowledge are closed for today. AI limit reached (\`${AI_DAILY_LIMIT}\`).`);
+            }
+
+            if (isBotMentioned && !isReplyToBot) {
+                const contentAfterMention = message.content.replace(botMentionRegex, '').trim();
+                const firstWord = contentAfterMention.split(/\s+/)[0]?.toLowerCase();
+                const aliasMap = { 'fn': 'forcename', 'rfn': 'removeforcename', 'gstart': 'giveaway', 'ar': 'autoresponder' };
+                const potentialCmd = aliasMap[firstWord] || firstWord;
+                const knownCommand = client.commands.get(potentialCmd);
+
+                if (!(knownCommand && contentAfterMention.length > 0)) {
+                    try {
+                        await message.channel.sendTyping().catch(() => {});
+                        const { handleLuciferAI } = require('../utils/luciferAI');
+                        const aiResponse = await handleLuciferAI(message, client, false);
+                        incrementAiUsage(message.guild.id);
+                        return message.reply(aiResponse).catch(() => {});
+                    } catch (e) {
+                        console.error('AI Error:', e);
+                        return message.reply('💀 The cosmic forces are interfering. Try again shortly.').catch(() => {});
+                    }
+                }
+            }
+
+            if (isReplyToBot) {
+                try {
+                    await message.channel.sendTyping().catch(() => {});
+                    const { handleLuciferAI } = require('../utils/luciferAI');
+                    const aiResponse = await handleLuciferAI(message, client, true);
+                    incrementAiUsage(message.guild.id);
+                    return message.reply(aiResponse).catch(() => {});
+                } catch (e) {
+                    console.error('AI Error:', e);
+                    return message.reply('💀 The cosmic forces are interfering.').catch(() => {});
+                }
+            }
+        }
+
         // ── COMMAND HANDLER ──
         const prefix = getPrefix(message.guild.id);
-        const mentionRegex = new RegExp(`^<@!?${client.user.id}>`);
         let usedPrefix = null;
         if (message.content.startsWith(prefix)) usedPrefix = prefix;
-        else if (mentionRegex.test(message.content)) usedPrefix = message.content.match(mentionRegex)[0];
+        else if (botMentionRegex.test(message.content)) usedPrefix = message.content.match(botMentionRegex)[0];
         if (!usedPrefix) return;
 
         const args = message.content.slice(usedPrefix.length).trim().split(/ +/);
         let commandName = args.shift()?.toLowerCase();
         if (!commandName) return;
 
-        const aliasMap = { 'fn': 'forcename', 'rfn': 'removeforcename', 'gstart': 'giveaway', 'ar': 'autoresponder' };
-        if (aliasMap[commandName]) commandName = aliasMap[commandName];
+        const aliasMap2 = { 'fn': 'forcename', 'rfn': 'removeforcename', 'gstart': 'giveaway', 'ar': 'autoresponder' };
+        if (aliasMap2[commandName]) commandName = aliasMap2[commandName];
 
         const command = client.commands.get(commandName);
         if (!command) return;

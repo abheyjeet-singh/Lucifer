@@ -19,16 +19,18 @@ module.exports = {
     async execute(message, args, client) {
         const amount = parseInt(args[0]);
         if (isNaN(amount) || amount < 1 || amount > 100) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a number between 1-100.', color: THEME.error })] });
-        return this.run(client, message.guild, message.channel, message.member, amount, null, message);
+        // Delete the command message first so it doesn't cause issues
+        await message.delete().catch(() => {});
+        return this.run(client, message.guild, message.channel, message.member, amount, null, message, false);
     },
 
     async interact(interaction, client) {
         const amount = interaction.options.getInteger('amount');
         const user = interaction.options.getUser('user');
-        return this.run(client, interaction.guild, interaction.channel, interaction.member, amount, user, interaction);
+        return this.run(client, interaction.guild, interaction.channel, interaction.member, amount, user, interaction, true);
     },
 
-    async run(client, guild, channel, moderator, amount, user, context) {
+    async run(client, guild, channel, moderator, amount, user, context, isInteraction) {
         const messages = await channel.messages.fetch({ limit: 100 });
         let toDelete;
 
@@ -38,7 +40,13 @@ module.exports = {
             toDelete = messages.first(amount);
         }
 
-        if (!toDelete || toDelete.length === 0) return context.reply({ embeds: [createEmbed({ description: '⚠️ No messages found to purge.', color: THEME.error })], ephemeral: true });
+        if (!toDelete || toDelete.length === 0) {
+            if (isInteraction) {
+                return context.reply({ embeds: [createEmbed({ description: '⚠️ No messages found to purge.', color: THEME.error })], flags: 64 });
+            } else {
+                return channel.send({ embeds: [createEmbed({ description: '⚠️ No messages found to purge.', color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
+            }
+        }
 
         const deleted = await channel.bulkDelete(toDelete, true).catch(() => null);
         const count = deleted ? deleted.size : 0;
@@ -47,7 +55,6 @@ module.exports = {
             // ── Generate TXT Transcript ──
             let transcript = `📜 LUCIFER PURGE TRANSCRIPT\n========================================\nChannel: #${channel.name} | Moderator: ${moderator.user.tag} | Date: ${new Date().toLocaleString()}\n========================================\n\n`;
             
-            // Sort messages oldest to newest
             const sorted = [...deleted.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
             
             sorted.forEach(msg => {
@@ -63,7 +70,6 @@ module.exports = {
 
             transcript += `\n========================================\nTotal Messages Purged: ${count}`;
 
-            // Write to temp file
             const filePath = path.join(__dirname, '..', '..', 'database', `purge-${Date.now()}.txt`);
             fs.writeFileSync(filePath, transcript, 'utf8');
 
@@ -78,13 +84,13 @@ module.exports = {
                 files: [attachment]
             });
 
-            // Delete temp file after sending
             setTimeout(() => {
                 try { fs.unlinkSync(filePath); } catch {}
             }, 5000);
         }
 
-        const reply = await context.reply({ embeds: [createEmbed({ description: `🧹 **${count}** message(s) have been purged from existence.`, color: THEME.success })], fetchReply: true });
+        // Use channel.send instead of context.reply — original message may be deleted
+        const reply = await channel.send({ embeds: [createEmbed({ description: `🧹 **${count}** message(s) have been purged from existence.`, color: THEME.success })] });
         setTimeout(() => reply.deletable ? reply.delete().catch(() => {}) : null, 5000);
     },
 };

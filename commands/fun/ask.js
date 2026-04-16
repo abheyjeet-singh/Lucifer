@@ -31,7 +31,18 @@ module.exports = {
             return context.reply({ embeds: [createEmbed({ description: `🔥 The gates of knowledge are closed for today. Limit reached (\`${AI_DAILY_LIMIT}\`).`, color: THEME.secondary })] });
         }
 
-        await context.reply({ embeds: [createEmbed({ description: '🔮 Consulting the ancient texts...', color: THEME.celestial })] });
+        // Send "Thinking..." and get a reference we can edit later
+        const isInteraction = !!context.editReply;
+        const thinkingMsg = await context.reply({ embeds: [createEmbed({ description: '🔮 Consulting the ancient texts...', color: THEME.celestial })], fetchReply: true });
+
+        // Helper to edit the reply (works for both messages and interactions)
+        const editMsg = async (options) => {
+            if (isInteraction) {
+                return context.editReply(options);
+            } else {
+                return thinkingMsg.edit(options);
+            }
+        };
 
         const modCache = guild.members.cache.filter(m => m.permissions.has(PermissionFlagsBits.Administrator) || m.permissions.has(PermissionFlagsBits.ModerateMembers));
         const modList = modCache.map(m => `${m.user.tag}`).join(', ') || 'None found';
@@ -57,7 +68,7 @@ CRITICAL FORMATTING RULES:
 
         try {
             const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
-                model: 'llama-3.1-8b-instant', // Groq's Smartest Llama 3 Model
+                model: 'llama-3.1-8b-instant',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: question }
@@ -78,7 +89,7 @@ CRITICAL FORMATTING RULES:
 
             const newCount = incrementAiUsage(guild.id);
 
-            return context.editReply({ embeds: [createEmbed({
+            return editMsg({ embeds: [createEmbed({
                 author: { name: `${user.username} sought wisdom...`, iconURL: user.displayAvatarURL() },
                 description: `> ${question}\n\n🔥 **Lucifer speaks:**\n${answer}`,
                 color: THEME.primary,
@@ -87,7 +98,7 @@ CRITICAL FORMATTING RULES:
 
         } catch (error) {
             console.error('Groq API Error:', error.response?.data || error.message);
-            return context.editReply({ embeds: [createEmbed({ description: '💀 The cosmic queue is overflowing. Try again shortly.', color: THEME.accent })] });
+            return editMsg({ embeds: [createEmbed({ description: '💀 The cosmic queue is overflowing. Try again shortly.', color: THEME.accent })] });
         }
     },
 };
