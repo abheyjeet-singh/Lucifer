@@ -43,7 +43,8 @@ function ensureGuild(db, guildId) {
             sticky_roles_enabled: false,
             sticky_roles_ignore: [],
             auto_responders: [],
-            ai_mention_enabled: false
+            ai_mention_enabled: false,
+            booster_roles: []
         };
     }
     const g = db.guilds[guildId];
@@ -65,6 +66,15 @@ function ensureGuild(db, guildId) {
     if (!g.sticky_roles_ignore) g.sticky_roles_ignore = [];
     if (!g.auto_responders) g.auto_responders = [];
     if (g.ai_mention_enabled === undefined) g.ai_mention_enabled = false;
+    if (!g.booster_roles) g.booster_roles = [];
+    // Migration: remove old single booster keys if they exist
+    if (g.booster_role_id !== undefined) {
+        if (g.booster_role_id && !g.booster_roles.find(b => b.role_id === g.booster_role_id)) {
+            g.booster_roles.push({ role_id: g.booster_role_id, bonus_entries: g.booster_bonus_entries || 1 });
+        }
+        delete g.booster_role_id;
+        delete g.booster_bonus_entries;
+    }
     saveDB(db); return db;
 }
 
@@ -195,9 +205,31 @@ function clearAutoResponders(guildId) {
     saveDB(db);
 }
 
-// ── AI MENTION MODE ──
 function isAiMentionEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].ai_mention_enabled || false; }
 function setAiMentionEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].ai_mention_enabled = enabled; saveDB(db); }
+
+// ── BOOSTER ROLES (Multiple) ──
+function getBoosterRoles(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].booster_roles || []; }
+function addBoosterRole(guildId, roleId, bonusEntries) {
+    const db = loadDB(); ensureGuild(db, guildId);
+    if (!db.guilds[guildId].booster_roles) db.guilds[guildId].booster_roles = [];
+    // Check duplicate
+    if (db.guilds[guildId].booster_roles.find(b => b.role_id === roleId)) return false;
+    // Check max 10
+    if (db.guilds[guildId].booster_roles.length >= 10) return 'max';
+    db.guilds[guildId].booster_roles.push({ role_id: roleId, bonus_entries: bonusEntries });
+    saveDB(db); return true;
+}
+function removeBoosterRole(guildId, roleId) {
+    const db = loadDB(); ensureGuild(db, guildId);
+    db.guilds[guildId].booster_roles = db.guilds[guildId].booster_roles.filter(b => b.role_id !== roleId);
+    saveDB(db);
+}
+function clearBoosterRoles(guildId) {
+    const db = loadDB(); ensureGuild(db, guildId);
+    db.guilds[guildId].booster_roles = [];
+    saveDB(db);
+}
 
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
@@ -219,5 +251,6 @@ module.exports = {
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
     saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
     getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders,
-    isAiMentionEnabled, setAiMentionEnabled
+    isAiMentionEnabled, setAiMentionEnabled,
+    getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles
 };
