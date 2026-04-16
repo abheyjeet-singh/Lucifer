@@ -31,7 +31,18 @@ module.exports = {
             return context.reply({ embeds: [createEmbed({ description: `🔥 AI limit reached (\`${AI_DAILY_LIMIT}\`).`, color: THEME.secondary })] });
         }
 
-        await context.reply({ embeds: [createEmbed({ description: '🤔 Thinking...', color: THEME.celestial })] });
+        // Send "Thinking..." and get a reference we can edit later
+        const isInteraction = !!context.editReply;
+        const thinkingMsg = await context.reply({ embeds: [createEmbed({ description: '🤔 Thinking...', color: THEME.celestial })], fetchReply: true });
+
+        // Helper to edit the reply (works for both messages and interactions)
+        const editMsg = async (options) => {
+            if (isInteraction) {
+                return context.editReply(options);
+            } else {
+                return thinkingMsg.edit(options);
+            }
+        };
 
         try {
             const response = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
@@ -54,7 +65,7 @@ module.exports = {
 
             const newCount = incrementAiUsage(guild.id);
 
-            return context.editReply({ embeds: [createEmbed({
+            return editMsg({ embeds: [createEmbed({
                 description: answer,
                 color: THEME.success,
                 footer: { text: `🤖 AI Answer • ${newCount}/${AI_DAILY_LIMIT} today` }
@@ -62,7 +73,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Groq nask Error:', error.response?.data || error.message);
-            return context.editReply({ embeds: [createEmbed({ description: '💀 The AI is currently unavailable. Try again shortly.', color: THEME.error })] });
+            return editMsg({ embeds: [createEmbed({ description: '💀 The AI is currently unavailable. Try again shortly.', color: THEME.error })] });
         }
     },
 };
