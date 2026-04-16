@@ -46,40 +46,72 @@ module.exports = {
     async run(client, guild, channel, ms, winners, prize, context) {
         const endsAtMs = Date.now() + ms;
         const endsAtDiscord = Math.floor(endsAtMs / 1000);
+        const hostId = context.author?.id || context.user?.id;
+        const hostMention = `<@${hostId}>`;
         
         const embed = createEmbed({ 
             title: '🎁 The Devil\'s Lottery', 
-            description: `**Prize:** ${prize}\n**Winners:** ${winners}\n**Ends:** <t:${endsAtDiscord}:R>\n\nReact with 🎉 to enter!`, 
+            description: `**Prize:** ${prize}\n**Winners:** ${winners}\n**Host:** ${hostMention}\n**Ends:** <t:${endsAtDiscord}:R>\n\nReact with 🎉 to enter!`, 
             color: THEME.primary 
         });
         
         const msg = await channel.send({ embeds: [embed] });
         await msg.react('🎉');
         
-        // Save to database
-        addGiveaway({ guildId: guild.id, channelId: channel.id, messageId: msg.id, endsAt: endsAtMs, winners, prize });
+        // Save to database (now includes hostId)
+        addGiveaway({ guildId: guild.id, channelId: channel.id, messageId: msg.id, endsAt: endsAtMs, winners, prize, hostId });
         
         await context.reply({ embeds: [createEmbed({ description: '🎁 Giveaway started!', color: THEME.success })] });
 
         const endGiveaway = async () => {
-            // Remove from database
             removeGiveaway(msg.id);
 
             const fetched = await msg.fetch().catch(() => null);
             if (!fetched) return;
+            
             const reaction = fetched.reactions.cache.get('🎉');
-            if (!reaction) return channel.send('🎁 Giveaway ended, but no one reacted.');
+            
+            // No reaction found at all
+            if (!reaction) {
+                return channel.send({
+                    content: `🎁 Giveaway for **${prize}** ended, but no one reacted. ${hostMention}`,
+                    allowedMentions: { parse: ['users'] }
+                });
+            }
             
             const users = await reaction.users.fetch();
             const valid = users.filter(u => !u.bot);
-            if (valid.size < winners) return channel.send('🎁 Not enough participants.');
             
-            const winnerList = valid.random(winners);
-            channel.send(`🎉 Congratulations ${winnerList.map(w => w.toString()).join(', ')}! You won **${prize}**!`);
+            // No valid participants
+            if (valid.size === 0) {
+                return channel.send({
+                    content: `🎁 Giveaway for **${prize}** ended, but no valid participants entered. ${hostMention}`,
+                    allowedMentions: { parse: ['users'] }
+                });
+            }
+            
+            // Smart winner selection: if fewer participants than requested winners, give it to whoever entered
+            const actualWinners = Math.min(winners, valid.size);
+            const winnerList = valid.random(actualWinners);
+            const winnerArray = Array.isArray(winnerList) ? winnerList : [winnerList];
+            const winnerMentions = winnerArray.map(w => `<@${w.id}>`).join(', ');
+            
+            // Different messages depending on whether we got all requested winners or fewer
+            let resultMessage;
+            if (actualWinners < winners) {
+                resultMessage = `🎉 Congratulations ${winnerMentions}! You won **${prize}**!\n*(Only ${actualWinners} out of ${winners} requested winners entered)*\n📢 ${hostMention}, your giveaway has ended!`;
+            } else {
+                resultMessage = `🎉 Congratulations ${winnerMentions}! You won **${prize}**!\n📢 ${hostMention}, your giveaway has ended!`;
+            }
+            
+            channel.send({
+                content: resultMessage,
+                allowedMentions: { parse: ['users'] }
+            });
             
             fetched.edit({ embeds: [createEmbed({ 
                 title: '🎁 Giveaway Ended', 
-                description: `**Prize:** ${prize}\n**Winner(s):** ${winnerList.map(w => w.toString()).join(', ')}`, 
+                description: `**Prize:** ${prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}`, 
                 color: THEME.secondary 
             })] });
         };
@@ -96,33 +128,60 @@ module.exports = {
         if (!msg) return removeGiveaway(data.messageId);
 
         const timeLeft = data.endsAt - Date.now();
+        const hostId = data.hostId;
+        const hostMention = `<@${hostId}>`;
 
         const endGiveaway = async () => {
             removeGiveaway(msg.id);
             const fetched = await msg.fetch().catch(() => null);
             if (!fetched) return;
+            
             const reaction = fetched.reactions.cache.get('🎉');
-            if (!reaction) return channel.send('🎁 Giveaway ended, but no one reacted.');
+            
+            if (!reaction) {
+                return channel.send({
+                    content: `🎁 Giveaway for **${data.prize}** ended, but no one reacted. ${hostMention}`,
+                    allowedMentions: { parse: ['users'] }
+                });
+            }
             
             const users = await reaction.users.fetch();
             const valid = users.filter(u => !u.bot);
-            if (valid.size < data.winners) return channel.send('🎁 Not enough participants.');
             
-            const winnerList = valid.random(data.winners);
-            channel.send(`🎉 Congratulations ${winnerList.map(w => w.toString()).join(', ')}! You won **${data.prize}**!`);
+            if (valid.size === 0) {
+                return channel.send({
+                    content: `🎁 Giveaway for **${data.prize}** ended, but no valid participants entered. ${hostMention}`,
+                    allowedMentions: { parse: ['users'] }
+                });
+            }
+            
+            const actualWinners = Math.min(data.winners, valid.size);
+            const winnerList = valid.random(actualWinners);
+            const winnerArray = Array.isArray(winnerList) ? winnerList : [winnerList];
+            const winnerMentions = winnerArray.map(w => `<@${w.id}>`).join(', ');
+            
+            let resultMessage;
+            if (actualWinners < data.winners) {
+                resultMessage = `🎉 Congratulations ${winnerMentions}! You won **${data.prize}**!\n*(Only ${actualWinners} out of ${data.winners} requested winners entered)*\n📢 ${hostMention}, your giveaway has ended!`;
+            } else {
+                resultMessage = `🎉 Congratulations ${winnerMentions}! You won **${data.prize}**!\n📢 ${hostMention}, your giveaway has ended!`;
+            }
+            
+            channel.send({
+                content: resultMessage,
+                allowedMentions: { parse: ['users'] }
+            });
             
             fetched.edit({ embeds: [createEmbed({ 
                 title: '🎁 Giveaway Ended', 
-                description: `**Prize:** ${data.prize}\n**Winner(s):** ${winnerList.map(w => w.toString()).join(', ')}`, 
+                description: `**Prize:** ${data.prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}`, 
                 color: THEME.secondary 
             })] });
         };
 
-        // If the giveaway should have already ended while the bot was offline, end it immediately
         if (timeLeft <= 0) {
             await endGiveaway();
         } else {
-            // Otherwise, resume the timer for the remaining time
             setTimeout(endGiveaway, timeLeft);
         }
     }
