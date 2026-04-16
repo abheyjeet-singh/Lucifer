@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const dbPath = path.join(__dirname, 'lucifer.json');
-const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [], giveaways: [] };
+const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [], giveaways: [], sticky_user_roles: {} };
 
 function loadDB() {
     try {
@@ -16,6 +16,7 @@ function loadDB() {
         if (!data.guilds) data.guilds = {};
         if (!data.afk) data.afk = {};
         if (!data.stickies) data.stickies = {};
+        if (!data.sticky_user_roles) data.sticky_user_roles = {};
         if (!data.auto_delete) data.auto_delete = {};
         if (!data.counting) data.counting = {};
         if (!data.reminders) data.reminders = [];
@@ -38,7 +39,9 @@ function ensureGuild(db, guildId) {
             auto_translate_channels: {},
             starboard_channel_id: null, starboard_emoji: '⭐', starboard_threshold: 3,
             suggestion_channel_id: null,
-            counting_channel_id: null
+            counting_channel_id: null,
+            sticky_roles_enabled: false,
+            sticky_roles_ignore: []
         };
     }
     const g = db.guilds[guildId];
@@ -56,6 +59,8 @@ function ensureGuild(db, guildId) {
     if (!g.starboard_threshold) g.starboard_threshold = 3;
     if (!g.suggestion_channel_id) g.suggestion_channel_id = null;
     if (!g.counting_channel_id) g.counting_channel_id = null;
+    if (g.sticky_roles_enabled === undefined) g.sticky_roles_enabled = false;
+    if (!g.sticky_roles_ignore) g.sticky_roles_ignore = [];
     saveDB(db); return db;
 }
 
@@ -164,6 +169,16 @@ function addGiveaway(data) { const db = loadDB(); db.giveaways.push(data); saveD
 function removeGiveaway(messageId) { const db = loadDB(); db.giveaways = db.giveaways.filter(g => g.messageId !== messageId); saveDB(db); }
 function getActiveGiveaways() { const db = loadDB(); return db.giveaways; }
 
+// ── STICKY ROLES ──
+function isStickyRolesEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_enabled; }
+function setStickyRolesEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = enabled; saveDB(db); }
+function getStickyRolesIgnore(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_ignore; }
+function setStickyRolesIgnore(guildId, roleIds) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_ignore = roleIds; saveDB(db); }
+function saveStickyUserRoles(guildId, userId, roleIds) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) db.sticky_user_roles[guildId] = {}; db.sticky_user_roles[guildId][userId] = roleIds; saveDB(db); }
+function getStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return null; return db.sticky_user_roles[guildId][userId] || null; }
+function removeStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return; delete db.sticky_user_roles[guildId][userId]; saveDB(db); }
+function removeStickyRolesConfig(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = false; db.guilds[guildId].sticky_roles_ignore = []; delete db.sticky_user_roles[guildId]; saveDB(db); }
+
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
     addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
@@ -180,5 +195,7 @@ module.exports = {
     isAfk, setAfk, removeAfk, getAutoDelete, setAutoDelete, removeAutoDelete,
     addReminder, getExpiredReminders, removeReminder,
     addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
-    addGiveaway, removeGiveaway, getActiveGiveaways
+    addGiveaway, removeGiveaway, getActiveGiveaways,
+    isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
+    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig
 };

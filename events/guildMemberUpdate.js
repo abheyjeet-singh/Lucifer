@@ -16,8 +16,8 @@ module.exports = {
         }
 
         // 2. Role Changes
-        const addedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
-        const removedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
+        const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
+        const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
 
         if (addedRoles.size > 0 || removedRoles.size > 0) {
             const addedStr = addedRoles.map(r => `+ ${r.name}`).join('\n') || 'None';
