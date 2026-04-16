@@ -41,7 +41,8 @@ function ensureGuild(db, guildId) {
             suggestion_channel_id: null,
             counting_channel_id: null,
             sticky_roles_enabled: false,
-            sticky_roles_ignore: []
+            sticky_roles_ignore: [],
+            auto_responders: []
         };
     }
     const g = db.guilds[guildId];
@@ -61,6 +62,7 @@ function ensureGuild(db, guildId) {
     if (!g.counting_channel_id) g.counting_channel_id = null;
     if (g.sticky_roles_enabled === undefined) g.sticky_roles_enabled = false;
     if (!g.sticky_roles_ignore) g.sticky_roles_ignore = [];
+    if (!g.auto_responders) g.auto_responders = [];
     saveDB(db); return db;
 }
 
@@ -116,20 +118,16 @@ function addAutoTranslateChannel(guildId, channelId, lang) { const db = loadDB()
 function removeAutoTranslateChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); delete db.guilds[guildId].auto_translate_channels[channelId]; saveDB(db); }
 function getAutoTranslateLang(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].auto_translate_channels[channelId] || null; }
 
-// ── Starboard ──
 function setStarboard(guildId, channelId, emoji, threshold) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].starboard_channel_id = channelId; db.guilds[guildId].starboard_emoji = emoji; db.guilds[guildId].starboard_threshold = threshold; saveDB(db); }
 function getStarboard(guildId) { const db = loadDB(); ensureGuild(db, guildId); return { channel_id: db.guilds[guildId].starboard_channel_id, emoji: db.guilds[guildId].starboard_emoji, threshold: db.guilds[guildId].starboard_threshold }; }
 
-// ── Suggestions ──
 function setSuggestionChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].suggestion_channel_id = channelId; saveDB(db); }
 function getSuggestionChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].suggestion_channel_id; }
 
-// ── Counting ──
 function setCountingChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].counting_channel_id = channelId; db.counting[guildId] = { count: 0, last_user_id: null }; saveDB(db); }
 function getCounting(guildId) { const db = loadDB(); return db.counting[guildId] || { count: 0, last_user_id: null }; }
 function updateCounting(guildId, count, userId) { const db = loadDB(); db.counting[guildId] = { count, last_user_id: userId }; saveDB(db); }
 
-// ── In-Memory Caches (Stickies, AFK, Auto-Delete) ──
 const stickies = {}; const afk = {}; const autoDelete = {};
 function loadCaches() { const db = loadDB(); Object.assign(stickies, db.stickies || {}); Object.assign(afk, db.afk || {}); Object.assign(autoDelete, db.auto_delete || {}); }
 function saveCaches() { const db = loadDB(); db.stickies = stickies; db.afk = afk; db.auto_delete = autoDelete; saveDB(db); }
@@ -143,7 +141,6 @@ function getAutoDelete(channelId) { return autoDelete[channelId] || null; }
 function setAutoDelete(channelId, seconds) { autoDelete[channelId] = seconds; saveCaches(); }
 function removeAutoDelete(channelId) { delete autoDelete[channelId]; saveCaches(); }
 
-// ── Reminders ──
 function addReminder(userId, channelId, timestamp, reason) { const db = loadDB(); const id = Date.now(); db.reminders.push({ id, user_id: userId, channel_id: channelId, timestamp, reason }); saveDB(db); return id; }
 function getExpiredReminders(now) { const db = loadDB(); return db.reminders.filter(r => r.timestamp <= now); }
 function removeReminder(id) { const db = loadDB(); db.reminders = db.reminders.filter(r => r.id !== id); saveDB(db); }
@@ -156,7 +153,6 @@ function clearWarning(id) { const db = loadDB(); const index = db.warnings.findI
 function clearUserWarnings(guildId, userId) { const db = loadDB(); db.warnings = db.warnings.filter(w => !(w.guild_id === guildId && w.user_id === userId)); saveDB(db); }
 function getWarningCount(guildId, userId) { const db = loadDB(); return db.warnings.filter(w => w.guild_id === guildId && w.user_id === userId).length; }
 
-// ── UNSET FUNCTIONS ──
 function removeStarboard(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].starboard_channel_id = null; db.guilds[guildId].starboard_emoji = '⭐'; db.guilds[guildId].starboard_threshold = 3; saveDB(db); }
 function removeSuggestionChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].suggestion_channel_id = null; saveDB(db); }
 function removeCountingChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].counting_channel_id = null; delete db.counting[guildId]; saveDB(db); }
@@ -164,12 +160,10 @@ function removeWelcome(guildId) { const db = loadDB(); ensureGuild(db, guildId);
 function removeVerify(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].verify = { channel_id: null, role_id: null, message_id: null }; saveDB(db); }
 function removeDynamicVcHub(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].dynamic_vc_hub = null; saveDB(db); }
 
-// ── GIVEAWAY FUNCTIONS ──
 function addGiveaway(data) { const db = loadDB(); db.giveaways.push(data); saveDB(db); }
 function removeGiveaway(messageId) { const db = loadDB(); db.giveaways = db.giveaways.filter(g => g.messageId !== messageId); saveDB(db); }
 function getActiveGiveaways() { const db = loadDB(); return db.giveaways; }
 
-// ── STICKY ROLES ──
 function isStickyRolesEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_enabled; }
 function setStickyRolesEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = enabled; saveDB(db); }
 function getStickyRolesIgnore(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_ignore; }
@@ -178,6 +172,27 @@ function saveStickyUserRoles(guildId, userId, roleIds) { const db = loadDB(); if
 function getStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return null; return db.sticky_user_roles[guildId][userId] || null; }
 function removeStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return; delete db.sticky_user_roles[guildId][userId]; saveDB(db); }
 function removeStickyRolesConfig(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = false; db.guilds[guildId].sticky_roles_ignore = []; delete db.sticky_user_roles[guildId]; saveDB(db); }
+
+// ── AUTO RESPONDER ──
+function getAutoResponders(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].auto_responders || []; }
+function addAutoResponder(guildId, trigger, response, matchType) {
+    const db = loadDB(); ensureGuild(db, guildId);
+    if (!db.guilds[guildId].auto_responders) db.guilds[guildId].auto_responders = [];
+    const id = Date.now();
+    db.guilds[guildId].auto_responders.push({ id, trigger: trigger.toLowerCase(), response, match_type: matchType });
+    saveDB(db); return id;
+}
+function removeAutoResponder(guildId, id) {
+    const db = loadDB(); ensureGuild(db, guildId);
+    const numId = Number(id);
+    db.guilds[guildId].auto_responders = db.guilds[guildId].auto_responders.filter(a => a.id !== numId);
+    saveDB(db);
+}
+function clearAutoResponders(guildId) {
+    const db = loadDB(); ensureGuild(db, guildId);
+    db.guilds[guildId].auto_responders = [];
+    saveDB(db);
+}
 
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
@@ -197,5 +212,6 @@ module.exports = {
     addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
     addGiveaway, removeGiveaway, getActiveGiveaways,
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
-    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig
+    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
+    getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders
 };

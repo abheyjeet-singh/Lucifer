@@ -1,8 +1,9 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
-// ── Strip Discord Markdown for clean text ──
+// ── Strip Discord Markdown ──
 function stripMarkdown(text) {
     return text
+        .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
         .replace(/\*\*(.*?)\*\*/g, '$1')
         .replace(/\*(.*?)\*/g, '$1')
         .replace(/__(.*?)__/g, '$1')
@@ -11,191 +12,222 @@ function stripMarkdown(text) {
         .replace(/`{3}(.*?)`{3}/gs, '$1')
         .replace(/`(.*?)`/g, '$1')
         .replace(/\|\|(.*?)\|\|/g, '$1')
-        .replace(/<@!?(\d+)>/g, '@user')
-        .replace(/<#(\d+)>/g, '#channel')
-        .replace(/<@&(\d+)>/g, '@role')
         .replace(/<a?:(\w+):\d+>/g, ':$1:')
         .replace(/https?:\/\/\S+/g, '');
 }
 
-// ── Word Wrap ──
+// ── Word Wrap (Handles Newlines) ──
 function wrapText(ctx, text, maxWidth) {
-    const words = text.split(' ');
-    const lines = [];
-    let currentLine = words[0] || '';
+    const paragraphs = text.split('\n');
+    const allLines = [];
 
-    for (let i = 1; i < words.length; i++) {
-        const word = words[i];
-        const width = ctx.measureText(currentLine + ' ' + word).width;
-        if (width < maxWidth) {
-            currentLine += ' ' + word;
-        } else {
-            lines.push(currentLine);
-            currentLine = word;
+    for (const paragraph of paragraphs) {
+        if (paragraph.trim() === '') { allLines.push(''); continue; }
+        const words = paragraph.split(' ');
+        let currentLine = words[0] || '';
+        for (let i = 1; i < words.length; i++) {
+            const testLine = currentLine + ' ' + words[i];
+            if (ctx.measureText(testLine).width < maxWidth) {
+                currentLine = testLine;
+            } else {
+                allLines.push(currentLine);
+                currentLine = words[i];
+            }
         }
+        allLines.push(currentLine);
     }
-    lines.push(currentLine);
-    return lines;
-}
-
-// ── Draw Rounded Rectangle ──
-function roundRect(ctx, x, y, width, height, radius) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
+    return allLines;
 }
 
 // ── Draw Circular Image ──
-function drawCircularImage(ctx, img, x, y, size) {
+function drawCircleImage(ctx, img, cx, cy, radius) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(img, x, y, size, size);
+    ctx.drawImage(img, cx - radius, cy - radius, radius * 2, radius * 2);
     ctx.restore();
+}
+
+// ── Draw Circle Stroke ──
+function drawCircleStroke(ctx, cx, cy, radius, color, lineWidth) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
 }
 
 // ── Style Themes ──
 const STYLES = {
     lucifer: {
         name: '😈 Lucifer',
-        bgStart: '#1a0000',
-        bgEnd: '#6b0f0f',
-        nameColor: '#FFD700',
+        rightBg: '#0F0000',
         textColor: '#FFFFFF',
-        avatarBorder: '#FFD700',
-        avatarShadow: 'rgba(255, 215, 0, 0.4)',
-        borderColor: 'rgba(255, 215, 0, 0.15)'
+        nameColor: '#FFD700',
+        handleColor: '#CC9900',
+        overlayColor: 'rgba(5, 0, 0, 0.50)',
+        accentColor: '#FFD700',
+        separatorColor: '#FFD700'
     },
     dark: {
         name: '🌑 Dark',
-        bgStart: '#0d0d0d',
-        bgEnd: '#1a1a2e',
+        rightBg: '#111111',
+        textColor: '#FFFFFF',
         nameColor: '#FFFFFF',
-        textColor: '#DCDDDE',
-        avatarBorder: '#5865F2',
-        avatarShadow: 'rgba(88, 101, 242, 0.4)',
-        borderColor: 'rgba(88, 101, 242, 0.15)'
+        handleColor: '#888888',
+        overlayColor: 'rgba(0, 0, 0, 0.50)',
+        accentColor: '#5865F2',
+        separatorColor: '#5865F2'
     },
     light: {
         name: '☀️ Light',
-        bgStart: '#FFFFFF',
-        bgEnd: '#F0F0F5',
-        nameColor: '#1a1a2e',
-        textColor: '#5C5E66',
-        avatarBorder: '#5865F2',
-        avatarShadow: 'rgba(88, 101, 242, 0.2)',
-        borderColor: 'rgba(0, 0, 0, 0.08)'
+        rightBg: '#F5F5F5',
+        textColor: '#1E1F22',
+        nameColor: '#1E1F22',
+        handleColor: '#888888',
+        overlayColor: 'rgba(255, 255, 255, 0.55)',
+        accentColor: '#5865F2',
+        separatorColor: '#5865F2'
     }
 };
 
-async function generateQuote(avatarURL, username, content, styleName = 'lucifer') {
+async function generateQuote(avatarURL, displayName, username, content, styleName = 'lucifer') {
     const style = STYLES[styleName] || STYLES.lucifer;
-    const font = "'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
-    // ── Prepare Text ──
     const cleanContent = stripMarkdown(content) || '...';
-    const displayName = username || 'Unknown';
+    const name = displayName || 'Unknown';
+    const handle = username ? `@${username}` : '';
 
-    // ── Canvas Setup (temporary to measure text) ──
-    const tempCanvas = createCanvas(1200, 1000);
+    // ── Dimensions ──
+    const canvasWidth = 1500;
+    const leftWidth = 750;
+    const rightWidth = 750;
+    const rightPadding = 80;
+    const textMaxWidth = rightWidth - (rightPadding * 2);
+    const textLineHeight = 58;
+    const nameGap = 50;
+    const handleGap = 10;
+
+    // ── Measure Text ──
+    const tempCanvas = createCanvas(canvasWidth, 1000);
     const tempCtx = tempCanvas.getContext('2d');
 
-    // ── Measure Text Height ──
-    const padding = 70;
-    const avatarSize = 150;
-    const textMaxWidth = 1200 - (padding * 2) - 20;
-    
-    tempCtx.font = `bold 48px ${font}`;
-    const nameHeight = tempCtx.measureText(displayName).actualBoundingBoxAscent + 20;
-
-    tempCtx.font = `38px ${font}`;
+    tempCtx.font = 'bold 46px Roboto, sans-serif';
     const lines = wrapText(tempCtx, cleanContent, textMaxWidth);
-    const textBlockHeight = lines.length * 52;
+    const textBlockHeight = lines.length * textLineHeight;
+    const nameBlockHeight = 40 + handleGap + 30;
+    const totalContentHeight = textBlockHeight + nameGap + nameBlockHeight;
 
-    // ── Calculate Final Canvas Size ──
-    const canvasWidth = 1200;
-    const canvasHeight = Math.max(400, padding + avatarSize + 30 + nameHeight + textBlockHeight + padding);
+    const canvasHeight = Math.max(700, totalContentHeight + 200);
 
-    // ── Create Final Canvas ──
+    // ── Create Canvas ──
     const canvas = createCanvas(canvasWidth, canvasHeight);
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
-    // ── Background Gradient ──
-    const gradient = ctx.createLinearGradient(0, 0, canvasWidth, canvasHeight);
-    gradient.addColorStop(0, style.bgStart);
-    gradient.addColorStop(1, style.bgEnd);
-    
-    roundRect(ctx, 0, 0, canvasWidth, canvasHeight, 30);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    // ── Subtle Inner Border ──
-    roundRect(ctx, 8, 8, canvasWidth - 16, canvasHeight - 16, 24);
-    ctx.strokeStyle = style.borderColor;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // ── Avatar ──
+    // ── Load Avatar ──
     let avatarImg;
     try {
-        const cleanURL = avatarURL.replace(/\.(gif|webp)$/i, '.png') + '?size=256';
+        const cleanURL = avatarURL.replace(/\.(gif|webp)$/i, '.png').replace(/\?size=\d+/, '') + '?size=1024';
         avatarImg = await loadImage(cleanURL);
     } catch (e) {
-        // Fallback: create a blank avatar
-        avatarImg = createCanvas(150, 150);
+        avatarImg = createCanvas(100, 100);
     }
 
-    const avatarX = padding;
-    const avatarY = padding;
+    // ════════════════════════════════════════
+    // ── STEP 1: Fill ENTIRE canvas with right bg ──
+    // ════════════════════════════════════════
+    ctx.fillStyle = style.rightBg;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    // Avatar Shadow
-    ctx.shadowColor = style.avatarShadow;
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 5;
+    // ════════════════════════════════════════
+    // ── STEP 2: LEFT HALF — Blurred Avatar ──
+    // ════════════════════════════════════════
 
-    // Avatar Border Circle
-    ctx.beginPath();
-    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2 + 5, 0, Math.PI * 2);
-    ctx.fillStyle = style.avatarBorder;
-    ctx.fill();
+    const blurW = 200;
+    const blurH = Math.round(200 * (canvasHeight / leftWidth));
+    const blurCanvas = createCanvas(blurW, blurH);
+    const blurCtx = blurCanvas.getContext('2d');
 
-    // Reset Shadow
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    const imgAspect = avatarImg.width / avatarImg.height;
+    const targetAspect = leftWidth / canvasHeight;
+    let sx = 0, sy = 0, sw = avatarImg.width, sh = avatarImg.height;
 
-    // Avatar Image (Circular)
-    drawCircularImage(ctx, avatarImg, avatarX, avatarY, avatarSize);
+    if (imgAspect > targetAspect) {
+        sw = avatarImg.height * targetAspect;
+        sx = (avatarImg.width - sw) / 2;
+    } else {
+        sh = avatarImg.width / targetAspect;
+        sy = (avatarImg.height - sh) / 2;
+    }
 
-    // ── Username ──
-    const textStartX = padding;
-    const textStartY = avatarY + avatarSize + 30;
+    blurCtx.drawImage(avatarImg, sx, sy, sw, sh, 0, 0, blurW, blurH);
+    ctx.drawImage(blurCanvas, 0, 0, blurW, blurH, 0, 0, leftWidth, canvasHeight);
 
-    ctx.font = `bold 48px ${font}`;
-    ctx.fillStyle = style.nameColor;
-    ctx.fillText(displayName, textStartX, textStartY + 48);
+    // Dark overlay
+    ctx.fillStyle = style.overlayColor;
+    ctx.fillRect(0, 0, leftWidth, canvasHeight);
 
-    // ── Message Content ──
-    ctx.font = `38px ${font}`;
+    // ════════════════════════════════════════
+    // ── STEP 3: SEPARATOR LINE ──
+    // ════════════════════════════════════════
+
+    ctx.fillStyle = style.separatorColor;
+    ctx.fillRect(leftWidth - 4, 0, 4, canvasHeight);
+
+    // ════════════════════════════════════════
+    // ── STEP 4: CENTERED TEXT ──
+    // ════════════════════════════════════════
+
+    const centerX = leftWidth + (rightWidth / 2);
+    const contentStartY = (canvasHeight - totalContentHeight) / 2;
+
+    // ── Quote Text ──
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 46px Roboto, sans-serif';
     ctx.fillStyle = style.textColor;
 
-    let currentY = textStartY + 48 + 25;
+    let textY = contentStartY + (textLineHeight / 2);
     for (const line of lines) {
-        ctx.fillText(line, textStartX, currentY);
-        currentY += 52;
+        ctx.fillText(line, centerX, textY);
+        textY += textLineHeight;
     }
+
+    // ── Separator Line (thin, between text and name) ──
+    const sepY = textY + (nameGap / 2);
+    const sepHalfWidth = 60;
+    ctx.fillStyle = style.separatorColor;
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(centerX - sepHalfWidth, sepY - 1, sepHalfWidth * 2, 2);
+    ctx.globalAlpha = 1.0;
+
+    // ── Display Name ──
+    const nameY = textY + nameGap + 20;
+    ctx.font = 'bold 40px Roboto, sans-serif';
+    ctx.fillStyle = style.nameColor;
+    ctx.fillText(name, centerX, nameY);
+
+    // ── @Username ──
+    const handleY = nameY + 20 + handleGap + 15;
+    ctx.font = '28px Roboto, sans-serif';
+    ctx.fillStyle = style.handleColor;
+    ctx.fillText(handle, centerX, handleY);
+
+    // ════════════════════════════════════════
+    // ── STEP 5: SMALL CIRCULAR AVATAR ──
+    // ════════════════════════════════════════
+
+    const miniSize = 70;
+    const miniCX = canvasWidth - rightPadding - (miniSize / 2);
+    const miniCY = canvasHeight - 60 - (miniSize / 2);
+
+    drawCircleImage(ctx, avatarImg, miniCX, miniCY, miniSize / 2);
+    drawCircleStroke(ctx, miniCX, miniCY, (miniSize / 2) + 3, style.accentColor, 4);
 
     // ── Return Buffer ──
     return canvas.toBuffer('image/png');

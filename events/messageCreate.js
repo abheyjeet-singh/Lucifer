@@ -1,4 +1,4 @@
-const { getPrefix, getAutomod, addWarning, getAutoTranslateLang, isAfk, removeAfk, getAutoDelete, getCounting, updateCounting, getSticky, setSticky } = require('../database/db');
+const { getPrefix, getAutomod, addWarning, getAutoTranslateLang, isAfk, removeAfk, getAutoDelete, getCounting, updateCounting, getSticky, setSticky, getAutoResponders } = require('../database/db');
 const { hasPermission } = require('../utils/permissions');
 const { createEmbed, THEME } = require('../utils/embeds');
 const translate = require('@iamtraction/google-translate');
@@ -11,10 +11,30 @@ module.exports = {
         if (message.author.bot) return;
         if (!message.guild) return;
 
+        // ── AUTO RESPONDER ──
+        const autoResponders = getAutoResponders(message.guild.id);
+        if (autoResponders.length > 0) {
+            const lowerContent = message.content.toLowerCase();
+            for (const ar of autoResponders) {
+                let matched = false;
+                if (ar.match_type === 'exact') {
+                    matched = lowerContent === ar.trigger;
+                } else if (ar.match_type === 'startswith') {
+                    matched = lowerContent.startsWith(ar.trigger);
+                } else {
+                    matched = lowerContent.includes(ar.trigger);
+                }
+                if (matched) {
+                    await message.reply(ar.response).catch(() => {});
+                    break;
+                }
+            }
+        }
+
         // ── 1. Remove AFK if user talks ──
         if (isAfk(message.author.id, message.guild.id)) {
             removeAfk(message.author.id, message.guild.id);
-            message.member.setNickname(null).catch(() => {}); // Optional: remove [AFK] nick
+            message.member.setNickname(null).catch(() => {});
             message.reply({ embeds: [createEmbed({ description: '✨ You have awakened from your slumber.', color: THEME.success })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
         }
 
@@ -33,26 +53,24 @@ module.exports = {
         }
 
         // ── 4. Counting Channel Check ──
-        const settings = require('../database/db').getGuildSettings(message.guild.id); // Quick fetch for counting channel id
+        const settings = require('../database/db').getGuildSettings(message.guild.id);
         if (settings.counting_channel_id === message.channel.id) {
             const countingData = getCounting(message.guild.id);
             const num = parseInt(message.content);
-            if (isNaN(num)) return message.delete().catch(() => {}); // Delete non-numbers
-            if (message.author.id === countingData.last_user_id) return message.delete().catch(() => {}); // No double counting
+            if (isNaN(num)) return message.delete().catch(() => {});
+            if (message.author.id === countingData.last_user_id) return message.delete().catch(() => {});
             if (num !== countingData.count + 1) {
                 await message.delete().catch(() => {});
                 return message.channel.send(`💀 **${message.author}** ruined the count at **${countingData.count}**! Start from 1.`).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
             }
             updateCounting(message.guild.id, num, message.author.id);
-            // React to valid counts
             message.react('✅').catch(() => {});
-            return; // Stop processing commands in counting channel
+            return;
         }
 
         // ── 5. Sticky Message Check ──
         const stickyContent = getSticky(message.channel.id);
         if (stickyContent) {
-            // Delete the last sticky message sent by the bot
             const messages = await message.channel.messages.fetch({ limit: 10 });
             const lastSticky = messages.find(m => m.author.id === client.user.id && m.embeds[0]?.footer?.text?.includes('📌 Sticky Message'));
             if (lastSticky) await lastSticky.delete().catch(() => {});
@@ -84,7 +102,7 @@ module.exports = {
         let commandName = args.shift()?.toLowerCase();
         if (!commandName) return;
 
-        const aliasMap = { 'fn': 'forcename', 'rfn': 'removeforcename', 'gstart': 'giveaway' };
+        const aliasMap = { 'fn': 'forcename', 'rfn': 'removeforcename', 'gstart': 'giveaway', 'ar': 'autoresponder' };
         if (aliasMap[commandName]) commandName = aliasMap[commandName];
 
         const command = client.commands.get(commandName);

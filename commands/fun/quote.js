@@ -1,9 +1,32 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
 const { generateQuote, STYLES } = require('../../utils/quoteGenerator');
-const { hasPermission } = require('../../utils/permissions');
 
-// Extract Message ID from Discord Link
+// ── Resolve Discord Mentions to Real Names ──
+function resolveMentions(text, msg) {
+    if (!msg.guild) return text;
+
+    text = text.replace(/<@&(\d+)>/g, (match, roleId) => {
+        const role = msg.mentions.roles.get(roleId) || msg.guild.roles.cache.get(roleId);
+        return role ? `@${role.name}` : '@deleted-role';
+    });
+
+    text = text.replace(/<@!?(\d+)>/g, (match, userId) => {
+        const member = msg.mentions.members.get(userId) || msg.guild.members.cache.get(userId);
+        if (member) return `@${member.displayName}`;
+        const user = msg.mentions.users.get(userId) || msg.client.users.cache.get(userId);
+        if (user) return `@${user.username}`;
+        return '@unknown-user';
+    });
+
+    text = text.replace(/<#(\d+)>/g, (match, channelId) => {
+        const channel = msg.mentions.channels.get(channelId) || msg.guild.channels.cache.get(channelId);
+        return channel ? `#${channel.name}` : '#deleted-channel';
+    });
+
+    return text;
+}
+
 function extractFromLink(link) {
     const regex = /https:\/\/discord\.com\/channels\/(\d+)\/(\d+)\/(\d+)/;
     const match = link.match(regex);
@@ -35,7 +58,6 @@ module.exports = {
              )),
 
     async execute(message, args, client) {
-        // Determine style from args
         let style = 'lucifer';
         const styleArg = args[0]?.toLowerCase();
         if (styleArg === 'dark' || styleArg === 'light' || styleArg === 'lucifer') {
@@ -43,11 +65,10 @@ module.exports = {
             args.shift();
         }
 
-        // Must be a reply
         if (!message.reference || !message.reference.messageId) {
-            return message.reply({ embeds: [createEmbed({ 
-                description: '⚠️ You must **reply** to a message to make it a quote!\nUsage: `l!quote [lucifer|dark|light]` (while replying)', 
-                color: THEME.error 
+            return message.reply({ embeds: [createEmbed({
+                description: '⚠️ You must **reply** to a message to make it a quote!\nUsage: `l!quote [lucifer|dark|light]` (while replying)',
+                color: THEME.error
             })] });
         }
 
@@ -64,11 +85,8 @@ module.exports = {
         const style = interaction.options.getString('style') || 'lucifer';
 
         let targetMsg = null;
-
-        // Try fetching as raw Message ID in the current channel
         targetMsg = await interaction.channel.messages.fetch(messageInput).catch(() => null);
 
-        // Try fetching from a Discord Link
         if (!targetMsg) {
             const linkData = extractFromLink(messageInput);
             if (linkData) {
@@ -78,9 +96,9 @@ module.exports = {
         }
 
         if (!targetMsg) {
-            return interaction.reply({ embeds: [createEmbed({ 
-                description: '⚠️ Could not find that message. Provide a valid Message ID or Message Link.', 
-                color: THEME.error 
+            return interaction.reply({ embeds: [createEmbed({
+                description: '⚠️ Could not find that message. Provide a valid Message ID or Message Link.',
+                color: THEME.error
             })], flags: 64 });
         }
 
@@ -88,42 +106,37 @@ module.exports = {
     },
 
     async createAndSend(client, context, targetMsg, style) {
-        // Defer if it's an interaction (image generation can take a moment)
         if (context.deferReply) await context.deferReply();
 
-        const avatarURL = targetMsg.author.displayAvatarURL({ extension: 'png', size: 256 });
-        const username = targetMsg.author.globalName || targetMsg.author.username;
-        const content = targetMsg.content;
+        const avatarURL = targetMsg.author.displayAvatarURL({ extension: 'png', size: 1024 });
+        const displayName = targetMsg.member?.displayName || targetMsg.author.globalName || targetMsg.author.username;
+        const username = targetMsg.author.username;
 
-        if (!content || content.trim().length === 0) {
+        const rawContent = targetMsg.content;
+        const resolvedContent = resolveMentions(rawContent, targetMsg);
+
+        if (!resolvedContent || resolvedContent.trim().length === 0) {
             const replyMethod = context.editReply ? 'editReply' : 'reply';
-            return context[replyMethod]({ embeds: [createEmbed({ 
-                description: '⚠️ That message has no text content to quote.', 
-                color: THEME.error 
+            return context[replyMethod]({ embeds: [createEmbed({
+                description: '⚠️ That message has no text content to quote.',
+                color: THEME.error
             })] });
         }
 
         try {
-            const buffer = await generateQuote(avatarURL, username, content, style);
-            const styleName = STYLES[style]?.name || style;
+            const buffer = await generateQuote(avatarURL, displayName, username, resolvedContent, style);
 
             if (context.editReply) {
-                await context.editReply({ 
-                    content: `✨ Here's your ${styleName} quote:`, 
-                    files: [{ attachment: buffer, name: 'quote.png' }] 
-                });
+                await context.editReply({ files: [{ attachment: buffer, name: 'quote.png' }] });
             } else {
-                await context.reply({ 
-                    content: `✨ Here's your ${styleName} quote:`, 
-                    files: [{ attachment: buffer, name: 'quote.png' }] 
-                });
+                await context.reply({ files: [{ attachment: buffer, name: 'quote.png' }] });
             }
         } catch (e) {
             console.error('Quote Generation Error:', e);
             const replyMethod = context.editReply ? 'editReply' : 'reply';
-            await context[replyMethod]({ embeds: [createEmbed({ 
-                description: '⚠️ Failed to generate quote image.', 
-                color: THEME.error 
+            await context[replyMethod]({ embeds: [createEmbed({
+                description: '⚠️ Failed to generate quote image.',
+                color: THEME.error
             })] });
         }
     }
