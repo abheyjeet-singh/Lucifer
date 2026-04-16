@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const dbPath = path.join(__dirname, 'lucifer.json');
-const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [] };
+const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [], giveaways: [] };
 
 function loadDB() {
     try {
@@ -151,13 +151,18 @@ function clearWarning(id) { const db = loadDB(); const index = db.warnings.findI
 function clearUserWarnings(guildId, userId) { const db = loadDB(); db.warnings = db.warnings.filter(w => !(w.guild_id === guildId && w.user_id === userId)); saveDB(db); }
 function getWarningCount(guildId, userId) { const db = loadDB(); return db.warnings.filter(w => w.guild_id === guildId && w.user_id === userId).length; }
 
-// ── NEW UNSET FUNCTIONS ──
+// ── UNSET FUNCTIONS ──
 function removeStarboard(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].starboard_channel_id = null; db.guilds[guildId].starboard_emoji = '⭐'; db.guilds[guildId].starboard_threshold = 3; saveDB(db); }
 function removeSuggestionChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].suggestion_channel_id = null; saveDB(db); }
 function removeCountingChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].counting_channel_id = null; delete db.counting[guildId]; saveDB(db); }
 function removeWelcome(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].welcome = { channel_id: null, role_id: null, message: null, leave_channel_id: null }; saveDB(db); }
 function removeVerify(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].verify = { channel_id: null, role_id: null, message_id: null }; saveDB(db); }
 function removeDynamicVcHub(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].dynamic_vc_hub = null; saveDB(db); }
+
+// ── GIVEAWAY FUNCTIONS ──
+function addGiveaway(data) { const db = loadDB(); db.giveaways.push(data); saveDB(db); }
+function removeGiveaway(messageId) { const db = loadDB(); db.giveaways = db.giveaways.filter(g => g.messageId !== messageId); saveDB(db); }
+function getActiveGiveaways() { const db = loadDB(); return db.giveaways; }
 
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
@@ -174,5 +179,6 @@ module.exports = {
     loadCaches, getSticky, setSticky, removeSticky,
     isAfk, setAfk, removeAfk, getAutoDelete, setAutoDelete, removeAutoDelete,
     addReminder, getExpiredReminders, removeReminder,
-    addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount
+    addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
+    addGiveaway, removeGiveaway, getActiveGiveaways
 };
