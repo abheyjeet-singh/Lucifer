@@ -151,18 +151,26 @@ function clearWarning(id) { const db = loadDB(); const index = db.warnings.findI
 function clearUserWarnings(guildId, userId) { const db = loadDB(); db.warnings = db.warnings.filter(w => !(w.guild_id === guildId && w.user_id === userId)); saveDB(db); }
 function getWarningCount(guildId, userId) { const db = loadDB(); return db.warnings.filter(w => w.guild_id === guildId && w.user_id === userId).length; }
 
+// ── NEW UNSET FUNCTIONS ──
+function removeStarboard(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].starboard_channel_id = null; db.guilds[guildId].starboard_emoji = '⭐'; db.guilds[guildId].starboard_threshold = 3; saveDB(db); }
+function removeSuggestionChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].suggestion_channel_id = null; saveDB(db); }
+function removeCountingChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].counting_channel_id = null; delete db.counting[guildId]; saveDB(db); }
+function removeWelcome(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].welcome = { channel_id: null, role_id: null, message: null, leave_channel_id: null }; saveDB(db); }
+function removeVerify(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].verify = { channel_id: null, role_id: null, message_id: null }; saveDB(db); }
+function removeDynamicVcHub(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].dynamic_vc_hub = null; saveDB(db); }
+
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
     addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
     getAiUsage, incrementAiUsage, AI_DAILY_LIMIT, resetAiUsage,
     addForcedName, removeForcedName, getForcedName,
-    setDynamicVcHub, getDynamicVcHub, addDynamicVc, removeDynamicVc, isDynamicVc,
-    getAutomod, setAutomod, getWelcome, setWelcome, getVerify, setVerify,
+    setDynamicVcHub, getDynamicVcHub, addDynamicVc, removeDynamicVc, isDynamicVc, removeDynamicVcHub,
+    getAutomod, setAutomod, getWelcome, setWelcome, removeWelcome, getVerify, setVerify, removeVerify,
     getTickets, setTickets, addActiveTicket, removeActiveTicket, getActiveTicket,
     addReactionRole, removeReactionRole, getReactionRoles,
     addAutoTranslateChannel, removeAutoTranslateChannel, getAutoTranslateLang,
-    setStarboard, getStarboard, setSuggestionChannel, getSuggestionChannel,
-    setCountingChannel, getCounting, updateCounting,
+    setStarboard, getStarboard, removeStarboard, setSuggestionChannel, getSuggestionChannel, removeSuggestionChannel,
+    setCountingChannel, getCounting, updateCounting, removeCountingChannel,
     loadCaches, getSticky, setSticky, removeSticky,
     isAfk, setAfk, removeAfk, getAutoDelete, setAutoDelete, removeAutoDelete,
     addReminder, getExpiredReminders, removeReminder,
