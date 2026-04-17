@@ -46,7 +46,8 @@ function ensureGuild(db, guildId) {
             ai_mention_enabled: false,
             booster_roles: [],
             boost_perks_channel_id: null,
-            boost_dm_status: {}
+            boost_dm_status: {},
+            giveaway_ping_role_id: null
         };
     }
     const g = db.guilds[guildId];
@@ -71,8 +72,8 @@ function ensureGuild(db, guildId) {
     if (!g.booster_roles) g.booster_roles = [];
     if (!g.boost_perks_channel_id) g.boost_perks_channel_id = null;
     if (!g.boost_dm_status) g.boost_dm_status = {};
+    if (!g.giveaway_ping_role_id) g.giveaway_ping_role_id = null;
     
-    // Migration: remove old single booster keys if they exist
     if (g.booster_role_id !== undefined) {
         if (g.booster_role_id && !g.booster_roles.find(b => b.role_id === g.booster_role_id)) {
             g.booster_roles.push({ role_id: g.booster_role_id, bonus_entries: g.booster_bonus_entries || 1 });
@@ -179,7 +180,13 @@ function removeDynamicVcHub(guildId) { const db = loadDB(); ensureGuild(db, guil
 
 function addGiveaway(data) { const db = loadDB(); db.giveaways.push(data); saveDB(db); }
 function removeGiveaway(messageId) { const db = loadDB(); db.giveaways = db.giveaways.filter(g => g.messageId !== messageId); saveDB(db); }
-function getActiveGiveaways() { const db = loadDB(); return db.giveaways; }
+function getActiveGiveaways() { const db = loadDB(); return db.giveaways.filter(g => !g.ended); }
+function getGiveawayById(messageId) { const db = loadDB(); return db.giveaways.find(g => g.messageId === messageId); }
+function setGiveawayEnded(guildId, messageId) { 
+    const db = loadDB(); 
+    const g = db.giveaways.find(g => g.messageId === messageId && g.guildId === guildId);
+    if (g) { g.ended = true; saveDB(db); }
+}
 
 function isStickyRolesEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_enabled; }
 function setStickyRolesEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = enabled; saveDB(db); }
@@ -213,7 +220,6 @@ function clearAutoResponders(guildId) {
 function isAiMentionEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].ai_mention_enabled || false; }
 function setAiMentionEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].ai_mention_enabled = enabled; saveDB(db); }
 
-// ── BOOSTER ROLES (Multiple) ──
 function getBoosterRoles(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].booster_roles || []; }
 function addBoosterRole(guildId, roleId, bonusEntries) {
     const db = loadDB(); ensureGuild(db, guildId);
@@ -234,17 +240,16 @@ function clearBoosterRoles(guildId) {
     saveDB(db);
 }
 
-// ── BOOST PERKS CHANNEL & DM TRACKING ──
 function getBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_perks_channel_id; }
 function setBoostPerksChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_perks_channel_id = channelId; saveDB(db); }
 function removeBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_perks_channel_id = null; saveDB(db); }
-
 function getBoostDmStatus(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_dm_status[userId] || null; }
-function setBoostDmStatus(guildId, userId, status) { 
-    const db = loadDB(); ensureGuild(db, guildId); 
-    db.guilds[guildId].boost_dm_status[userId] = status; 
-    saveDB(db); 
-}
+function setBoostDmStatus(guildId, userId, status) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_dm_status[userId] = status; saveDB(db); }
+
+// ── GIVEAWAY PING ROLE ──
+function getGiveawayPingRole(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].giveaway_ping_role_id; }
+function setGiveawayPingRole(guildId, roleId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].giveaway_ping_role_id = roleId; saveDB(db); }
+function removeGiveawayPingRole(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].giveaway_ping_role_id = null; saveDB(db); }
 
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
@@ -262,11 +267,12 @@ module.exports = {
     isAfk, setAfk, removeAfk, getAutoDelete, setAutoDelete, removeAutoDelete,
     addReminder, getExpiredReminders, removeReminder,
     addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
-    addGiveaway, removeGiveaway, getActiveGiveaways,
+    addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded,
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
     saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
     getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders,
     isAiMentionEnabled, setAiMentionEnabled,
     getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles,
-    getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus
+    getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus,
+    getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole
 };

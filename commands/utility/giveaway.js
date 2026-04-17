@@ -1,13 +1,14 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { addGiveaway, removeGiveaway, getActiveGiveaways, getBoosterRoles } = require('../../database/db');
+const { addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded, getBoosterRoles, getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole } = require('../../database/db');
 
+// Updated to accept "min" and "m" for minutes
 function parseDuration(str) { 
-    const regex = /^(\d+)(s|m|h|d)$/; 
+    const regex = /^(\d+)(s|min|m|h|d)$/; 
     const match = str?.toLowerCase().match(regex); 
     if (!match) return null; 
     const num = parseInt(match[1]); 
-    const unit = { s: 1, m: 60, h: 3600, d: 86400 }[match[2]]; 
+    const unit = { s: 1, min: 60, m: 60, h: 3600, d: 86400 }[match[2]]; 
     return num * unit * 1000; 
 }
 
@@ -15,8 +16,8 @@ function getBotBanner(client) {
     return client.user.bannerURL({ size: 1024, extension: 'png' }) || null;
 }
 
-// ── Active Timeout Tracker ──
 const activeTimeouts = new Map();
+const rerollCleanupTimeouts = new Map();
 
 function addTimeout(messageId, timeoutId) { activeTimeouts.set(messageId, timeoutId); }
 function cancelTimeout(messageId) {
@@ -25,10 +26,8 @@ function cancelTimeout(messageId) {
     return false;
 }
 
-// ── Weighted Winner Selection (Multi-Booster) ──
 function pickWeightedWinners(validUsers, guild, winnerCount) {
     const boosterRoles = getBoosterRoles(guild.id);
-
     const candidatePool = [];
     for (const user of validUsers.values()) {
         const member = guild.members.cache.get(user.id);
@@ -65,6 +64,24 @@ function pickWeightedWinners(validUsers, guild, winnerCount) {
     return winnerArray;
 }
 
+function startRerollCleanup(client, channelId, messageId) {
+    if (rerollCleanupTimeouts.has(messageId)) clearTimeout(rerollCleanupTimeouts.get(messageId));
+    
+    const timeoutId = setTimeout(async () => {
+        try {
+            const channel = await client.channels.fetch(channelId).catch(() => null);
+            if (channel) {
+                const msg = await channel.messages.fetch(messageId).catch(() => null);
+                if (msg) await msg.edit({ components: [] }).catch(() => {});
+            }
+        } catch (e) { console.error('Reroll Cleanup Fetch Error:', e); }
+        removeGiveaway(messageId);
+        rerollCleanupTimeouts.delete(messageId);
+    }, 3600000); // 1 Hour in ms
+
+    rerollCleanupTimeouts.set(messageId, timeoutId);
+}
+
 module.exports = {
     name: 'giveaway', 
     description: 'The Devil\'s Lottery', 
@@ -78,7 +95,7 @@ module.exports = {
         .addSubcommand(sc =>
             sc.setName('start')
               .setDescription('Start a new giveaway')
-              .addStringOption(o => o.setName('duration').setDescription('e.g., 1h, 1d').setRequired(true))
+              .addStringOption(o => o.setName('duration').setDescription('e.g., 10min, 1h, 1d').setRequired(true))
               .addIntegerOption(o => o.setName('winners').setDescription('Number of winners').setRequired(true).setMinValue(1))
               .addStringOption(o => o.setName('prize').setDescription('What are we giving away?').setRequired(true))
               .addChannelOption(o =>
@@ -93,6 +110,10 @@ module.exports = {
             sc.setName('cancel')
               .setDescription('Cancel an active giveaway')
               .addStringOption(o => o.setName('id').setDescription('The giveaway message ID').setRequired(true)))
+        .addSubcommand(sc =>
+            sc.setName('pingrole')
+              .setDescription('Set the role to ping when a giveaway starts')
+              .addRoleOption(o => o.setName('role').setDescription('The role to ping (leave empty to disable)').setRequired(false)))
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(message, args, client) { 
@@ -104,24 +125,25 @@ module.exports = {
             if (!id) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!giveaway cancel <message_id>`', color: THEME.error })] });
             return this.cancelGiveaway(client, message.guild, message.member, id, message);
         }
+        if (sub === 'pingrole') {
+            const role = message.mentions.roles.first();
+            return this.configurePingRole(client, message.guild, role, message);
+        }
 
-        // Default: start giveaway
         const ms = parseDuration(args[0]); 
         const winners = parseInt(args[1]); 
         const prize = args.slice(2).join(' '); 
 
-        // Check for channel mention at the end
         const channelMention = message.mentions.channels.first();
         const targetChannel = channelMention || message.channel;
 
-        // If channel was mentioned, strip it from the prize text
         let cleanPrize = prize;
         if (channelMention) {
             cleanPrize = prize.replace(/<#\d+>/g, '').trim();
         }
 
         if (!ms || isNaN(winners) || !cleanPrize) {
-            return message.reply({ embeds: [createEmbed({ description: '⚠️ `l!giveaway 1h 1 Nitro [#channel]` or `l!giveaway list` or `l!giveaway cancel <id>`', color: THEME.error })] }); 
+            return message.reply({ embeds: [createEmbed({ description: '⚠️ `l!giveaway 10min 1 Nitro [#channel]` or `l!giveaway list` or `l!giveaway cancel <id>`', color: THEME.error })] }); 
         }
         return this.startGiveaway(client, message.guild, targetChannel, ms, winners, cleanPrize, message); 
     },
@@ -130,18 +152,30 @@ module.exports = {
         const sub = interaction.options.getSubcommand();
         if (sub === 'list') return this.showList(client, interaction.guild, interaction);
         if (sub === 'cancel') return this.cancelGiveaway(client, interaction.guild, interaction.member, interaction.options.getString('id'), interaction);
-        // start
+        if (sub === 'pingrole') {
+            const role = interaction.options.getRole('role');
+            return this.configurePingRole(client, interaction.guild, role, interaction);
+        }
         const ms = parseDuration(interaction.options.getString('duration')); 
         const winners = interaction.options.getInteger('winners'); 
         const prize = interaction.options.getString('prize'); 
         const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-        if (!ms) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration.', color: THEME.error })], flags: 64 }); 
+        if (!ms) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration. Use s, min, h, or d.', color: THEME.error })], flags: 64 }); 
         return this.startGiveaway(client, interaction.guild, targetChannel, ms, winners, prize, interaction); 
     },
 
-    // ════════════════════════════════════════
-    // ── LIST ACTIVE GIVEAWAYS ──
-    // ════════════════════════════════════════
+    async configurePingRole(client, guild, role, context) {
+        if (role) {
+            setGiveawayPingRole(guild.id, role.id);
+            const payload = { embeds: [createEmbed({ description: `🔔 Giveaway ping role set to ${role}.`, color: THEME.success })] };
+            return context.isChatInputCommand !== undefined ? context.reply(payload) : context.reply(payload);
+        } else {
+            removeGiveawayPingRole(guild.id);
+            const payload = { embeds: [createEmbed({ description: '🔔 Giveaway ping role disabled.', color: THEME.success })] };
+            return context.isChatInputCommand !== undefined ? context.reply(payload) : context.reply(payload);
+        }
+    },
+
     async showList(client, guild, context) {
         const giveaways = getActiveGiveaways().filter(g => g.guildId === guild.id);
         
@@ -166,9 +200,6 @@ module.exports = {
         })] });
     },
 
-    // ════════════════════════════════════════
-    // ── CANCEL GIVEAWAY ──
-    // ════════════════════════════════════════
     async cancelGiveaway(client, guild, member, messageId, context) {
         if (!member.permissions.has('ManageMessages')) return context.reply({ embeds: [createEmbed({ description: '🚫 You need Manage Messages permission.', color: THEME.error })] });
 
@@ -196,7 +227,7 @@ module.exports = {
                         color: THEME.error,
                         image: bannerURL,
                         footer: { text: `🔥 The Devil's Lottery` }
-                    })] });
+                    })], components: [] });
                 }
             }
         } catch {}
@@ -204,16 +235,12 @@ module.exports = {
         return context.reply({ embeds: [createEmbed({ description: `🎁 Giveaway for **${giveaway.prize}** has been cancelled.`, color: THEME.primary })] });
     },
 
-    // ════════════════════════════════════════
-    // ── START GIVEAWAY ──
-    // ════════════════════════════════════════
     async startGiveaway(client, guild, targetChannel, ms, winners, prize, context) {
         const endsAtMs = Date.now() + ms;
         const endsAtDiscord = Math.floor(endsAtMs / 1000);
         const hostId = context.author?.id || context.user?.id;
         const hostMention = `<@${hostId}>`;
 
-        // Check bot permissions in target channel
         if (!targetChannel.permissionsFor(client.user)?.has(['ViewChannel', 'SendMessages', 'EmbedLinks', 'AddReactions'])) {
             return context.reply({ embeds: [createEmbed({ description: `⚠️ I don't have permission to send messages or add reactions in ${targetChannel}.`, color: THEME.error })] });
         }
@@ -221,7 +248,6 @@ module.exports = {
         await client.user.fetch(true).catch(() => {});
         const bannerURL = getBotBanner(client);
 
-        // Build extra entries info
         const boosterRoles = getBoosterRoles(guild.id);
         let extraEntriesInfo = '';
         if (boosterRoles.length > 0) {
@@ -237,21 +263,27 @@ module.exports = {
             footer: { text: `🔥 Hosted by the Lord of Hell` }
         });
         
-        const msg = await targetChannel.send({ embeds: [startEmbed] });
+        // Check for Giveaway Ping Role
+        const pingRoleId = getGiveawayPingRole(guild.id);
+        const pingContent = pingRoleId ? `🔔 <@&${pingRoleId}> A new giveaway has started!` : '';
+
+        const msg = await targetChannel.send({ 
+            content: pingContent,
+            embeds: [startEmbed],
+            allowedMentions: { parse: ['users', 'roles'] }
+        });
         await msg.react('🎉');
         
         addGiveaway({ guildId: guild.id, channelId: targetChannel.id, messageId: msg.id, endsAt: endsAtMs, winners, prize, hostId });
         
-        // Different reply depending on if it's in the same channel or different
         const channelInfo = targetChannel.id !== (context.channel?.id) ? ` in ${targetChannel}` : '';
         await context.reply({ embeds: [createEmbed({ description: `🎁 Giveaway started${channelInfo}! ID: \`${msg.id}\``, color: THEME.success })] });
 
-        // ── End Giveaway ──
         const endGiveaway = async () => {
             const currentGiveaways = getActiveGiveaways();
             if (!currentGiveaways.find(g => g.messageId === msg.id)) return;
 
-            removeGiveaway(msg.id);
+            setGiveawayEnded(guild.id, msg.id);
             activeTimeouts.delete(msg.id);
 
             const fetched = await msg.fetch().catch(() => null);
@@ -269,7 +301,7 @@ module.exports = {
                     color: THEME.accent,
                     image: endBannerURL,
                     footer: { text: `🔥 The Devil's Lottery` }
-                })] });
+                })], components: [] });
                 return targetChannel.send({
                     content: `🎁 Giveaway for **${prize}** ended, but no one reacted. ${hostMention}`,
                     allowedMentions: { parse: ['users'] }
@@ -286,7 +318,7 @@ module.exports = {
                     color: THEME.accent,
                     image: endBannerURL,
                     footer: { text: `🔥 The Devil's Lottery` }
-                })] });
+                })], components: [] });
                 return targetChannel.send({
                     content: `🎁 Giveaway for **${prize}** ended, but no valid participants entered. ${hostMention}`,
                     allowedMentions: { parse: ['users'] }
@@ -301,13 +333,26 @@ module.exports = {
             const winnerMentions = winnerArray.map(w => `<@${w.id}>`).join(', ');
             const actualWinners = winnerArray.length;
 
-            fetched.edit({ embeds: [createEmbed({
-                title: '🎁 Giveaway Ended',
-                description: `**Prize:** ${prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}${actualWinners < winners ? `\n\n⚠️ Only ${actualWinners} out of ${winners} requested winners entered` : ''}`,
-                color: THEME.success,
-                image: endBannerURL,
-                footer: { text: `🔥 The Devil's Lottery` }
-            })] });
+            const rerollButton = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`reroll_giveaway_${msg.id}`)
+                    .setLabel('🔄 Reroll')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+            fetched.edit({ 
+                content: null, // Remove ping role text on end
+                embeds: [createEmbed({
+                    title: '🎁 Giveaway Ended',
+                    description: `**Prize:** ${prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}${actualWinners < winners ? `\n\n⚠️ Only ${actualWinners} out of ${winners} requested winners entered` : ''}`,
+                    color: THEME.success,
+                    image: endBannerURL,
+                    footer: { text: `🔥 The Devil's Lottery | Reroll expires in 1h` }
+                })],
+                components: [rerollButton] 
+            });
+
+            startRerollCleanup(client, targetChannel.id, msg.id);
 
             let resultMessage;
             if (actualWinners < winners) {
@@ -323,7 +368,65 @@ module.exports = {
         addTimeout(msg.id, timeoutId);
     },
 
-    // Resume giveaway on bot restart
+    async handleButton(interaction, client) {
+        if (!interaction.customId.startsWith('reroll_giveaway_')) return;
+
+        const messageId = interaction.customId.split('_')[2];
+        const giveaway = getGiveawayById(messageId);
+
+        if (!giveaway) {
+            return interaction.reply({ content: '⚠️ This giveaway data no longer exists or has expired.', ephemeral: true });
+        }
+
+        const botOwnerId = process.env.BOT_OWNER_ID;
+        const isHost = interaction.user.id === giveaway.hostId;
+        const isGuildOwner = interaction.user.id === interaction.guild.ownerId;
+        const isBotOwner = botOwnerId && interaction.user.id === botOwnerId;
+
+        if (!isHost && !isGuildOwner && !isBotOwner) {
+            return interaction.reply({ content: '🚫 Only the giveaway host, server owner, or bot owner can reroll!', ephemeral: true });
+        }
+
+        await interaction.deferReply();
+
+        const channel = interaction.channel;
+        const msg = await channel.messages.fetch(messageId).catch(() => null);
+        if (!msg) return interaction.editReply('⚠️ Could not find the original giveaway message.');
+
+        const reaction = msg.reactions.cache.get('🎉');
+        if (!reaction) return interaction.editReply('⚠️ No reactions found on the giveaway.');
+
+        const users = await reaction.users.fetch();
+        const valid = users.filter(u => !u.bot);
+
+        if (valid.size === 0) return interaction.editReply('⚠️ No valid participants to reroll.');
+
+        const winnerArray = pickWeightedWinners(valid, interaction.guild, giveaway.winners);
+        if (winnerArray.length === 0) return interaction.editReply('⚠️ Reroll failed to select winners.');
+
+        const winnerMentions = winnerArray.map(w => `<@${w.id}>`).join(', ');
+        const actualWinners = winnerArray.length;
+
+        await client.user.fetch(true).catch(() => {});
+        const endBannerURL = getBotBanner(client);
+
+        const updatedEmbed = createEmbed({
+            title: '🎁 Giveaway Ended (Rerolled)',
+            description: `**Prize:** ${giveaway.prize}\n**Winner(s):** ${winnerMentions}\n**Host:** <@${giveaway.hostId}>${actualWinners < giveaway.winners ? `\n\n⚠️ Only ${actualWinners} out of ${giveaway.winners} requested winners entered` : ''}`,
+            color: THEME.success,
+            image: endBannerURL,
+            footer: { text: `🔥 The Devil's Lottery | Rerolled` }
+        });
+
+        await msg.edit({ embeds: [updatedEmbed], components: msg.components });
+
+        startRerollCleanup(client, channel.id, messageId);
+
+        let resultMessage = `🔄 Rerolled! Congratulations ${winnerMentions}! You won **${giveaway.prize}**!\n📢 <@${giveaway.hostId}>, your giveaway has been rerolled!`;
+        
+        await interaction.editReply(resultMessage);
+    },
+
     async resumeGiveaway(client, data) {
         const channel = await client.channels.fetch(data.channelId).catch(() => null);
         if (!channel) return removeGiveaway(data.messageId);
@@ -339,7 +442,7 @@ module.exports = {
             const currentGiveaways = getActiveGiveaways();
             if (!currentGiveaways.find(g => g.messageId === msg.id)) return;
 
-            removeGiveaway(msg.id);
+            setGiveawayEnded(channel.guild.id, msg.id);
             activeTimeouts.delete(msg.id);
 
             const fetched = await msg.fetch().catch(() => null);
@@ -351,13 +454,13 @@ module.exports = {
             const reaction = fetched.reactions.cache.get('🎉');
             
             if (!reaction) {
-                fetched.edit({ embeds: [createEmbed({
+                fetched.edit({ content: null, embeds: [createEmbed({
                     title: '🎁 Giveaway Ended',
                     description: `**Prize:** ${data.prize}\n**Host:** ${hostMention}\n\n❌ No one reacted.`,
                     color: THEME.accent,
                     image: endBannerURL,
                     footer: { text: `🔥 The Devil's Lottery` }
-                })] });
+                })], components: [] });
                 return channel.send({
                     content: `🎁 Giveaway for **${data.prize}** ended, but no one reacted. ${hostMention}`,
                     allowedMentions: { parse: ['users'] }
@@ -368,13 +471,13 @@ module.exports = {
             const valid = users.filter(u => !u.bot);
             
             if (valid.size === 0) {
-                fetched.edit({ embeds: [createEmbed({
+                fetched.edit({ content: null, embeds: [createEmbed({
                     title: '🎁 Giveaway Ended',
                     description: `**Prize:** ${data.prize}\n**Host:** ${hostMention}\n\n❌ No valid participants entered.`,
                     color: THEME.accent,
                     image: endBannerURL,
                     footer: { text: `🔥 The Devil's Lottery` }
-                })] });
+                })], components: [] });
                 return channel.send({
                     content: `🎁 Giveaway for **${data.prize}** ended, but no valid participants entered. ${hostMention}`,
                     allowedMentions: { parse: ['users'] }
@@ -389,13 +492,26 @@ module.exports = {
             const winnerMentions = winnerArray.map(w => `<@${w.id}>`).join(', ');
             const actualWinners = winnerArray.length;
 
-            fetched.edit({ embeds: [createEmbed({
-                title: '🎁 Giveaway Ended',
-                description: `**Prize:** ${data.prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}${actualWinners < data.winners ? `\n\n⚠️ Only ${actualWinners} out of ${data.winners} requested winners entered` : ''}`,
-                color: THEME.success,
-                image: endBannerURL,
-                footer: { text: `🔥 The Devil's Lottery` }
-            })] });
+            const rerollButton = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`reroll_giveaway_${msg.id}`)
+                    .setLabel('🔄 Reroll')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+            fetched.edit({ 
+                content: null,
+                embeds: [createEmbed({
+                    title: '🎁 Giveaway Ended',
+                    description: `**Prize:** ${data.prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}${actualWinners < data.winners ? `\n\n⚠️ Only ${actualWinners} out of ${data.winners} requested winners entered` : ''}`,
+                    color: THEME.success,
+                    image: endBannerURL,
+                    footer: { text: `🔥 The Devil's Lottery | Reroll expires in 1h` }
+                })], 
+                components: [rerollButton] 
+            });
+
+            startRerollCleanup(client, channel.id, msg.id);
 
             let resultMessage;
             if (actualWinners < data.winners) {

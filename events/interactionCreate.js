@@ -43,6 +43,12 @@ module.exports = {
                 const ticketCmd = client.commands.get('ticket');
                 if (ticketCmd && ticketCmd.handleButton) await ticketCmd.handleButton(interaction, client);
             }
+
+            // Giveaway Reroll Button
+            if (interaction.customId.startsWith('reroll_giveaway_')) {
+                const giveawayCmd = client.commands.get('giveaway');
+                if (giveawayCmd && giveawayCmd.handleButton) await giveawayCmd.handleButton(interaction, client);
+            }
         }
 
         // ── 3. Modals ──
