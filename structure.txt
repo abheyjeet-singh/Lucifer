@@ -3,7 +3,6 @@
 │   └── lucifer-quotes.json
 ├── commands
 │   ├── fun
-│   │   ├── ask.js
 │   │   ├── bite.js
 │   │   ├── blackjack.js
 │   │   ├── coinflip.js
@@ -12,7 +11,6 @@
 │   │   ├── kill.js
 │   │   ├── kiss.js
 │   │   ├── lucifer-quote.js
-│   │   ├── nask.js
 │   │   ├── punch.js
 │   │   ├── quote.js
 │   │   ├── roulette.js
@@ -74,6 +72,7 @@
 │       ├── daily.js
 │       ├── deposit.js
 │       ├── giveaway.js
+│       ├── givecoins.js
 │       ├── guide.js
 │       ├── help.js
 │       ├── logchannel.js
@@ -136,4 +135,4 @@
     ├── permissions.js
     └── quoteGenerator.js
 
-10 directories, 127 files
+10 directories, 126 files
