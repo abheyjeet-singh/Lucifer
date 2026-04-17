@@ -426,6 +426,14 @@ const tools = [
                 message: { type: 'string', description: 'The announcement message to send' }
             }, required: ['channel_id', 'message'] }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'list_my_capabilities',
+            description: 'Use this when a user asks what you can do or what your commands are. Sends a detailed list of their allowed capabilities to their DMs based on their rank.',
+            parameters: { type: 'object', properties: {} }
+        }
     }
 ];
 
@@ -435,6 +443,7 @@ const tools = [
 
 const TOOL_PERMS = {
     mute_user: 'ModerateMembers',
+    list_my_capabilities: null,
     kick_user: 'KickMembers',
     ban_user: 'BanMembers',
     unmute_user: 'ModerateMembers',
@@ -849,6 +858,29 @@ async function executeTool(toolName, args, message, client) {
                 db.clearBoosterRoles(guild.id);
                 return `OK|Cleared all **${current.length}** booster role(s). Everyone now has equal chances.`;
             }
+            case 'list_my_capabilities': {
+                const target = await guild.members.fetch(member.id).catch(() => null);
+                if (!target) return 'FAILED|Could not fetch your data.';
+                
+                // Use the existing buildCapabilities function based on THEIR permissions
+                const capabilities = buildCapabilities(member.permissions);
+                
+                const isOwner = botOwnerId && member.id === botOwnerId;
+                const rankTitle = isOwner ? '👑 The Creator' : (guild.ownerId === member.id ? '🏰 Realm Owner' : member.permissions.has('Administrator') ? '⚜️ Administrator' : '🗡️ Mortal');
+                
+                const dmMessage = `**Hark, ${rankTitle}!**\n\nI am Lucifer Morningstar, and here is what I can do for someone of your... *station*:\n\n${capabilities}\n\n*Remember, even the Devil respects the hierarchy. You cannot command above your rank.* 👁️`;
+                
+                try {
+                    await target.send({ embeds: [createEmbed({
+                        title: '🔥 My Capabilities',
+                        description: dmMessage,
+                        color: THEME.primary
+                    })] });
+                    return `OK|DM sent with capabilities.`;
+                } catch (e) {
+                    return `FAILED:DM_CLOSED|I tried to slide into their DMs, but they have them locked tighter than the gates of Heaven. Tell them to enable DMs from server members.`;
+                }
+            }
 
             default: return 'FAILED|Unknown tool.';
         }
@@ -907,7 +939,7 @@ ABSOLUTE RULES - VIOLATION CAUSES CRASHES:
 3. role_id MUST be a 17-20 digit number from ROLES section.
 4. channel_id MUST be a 17-20 digit number from CHANNEL MENTIONS section if provided. Otherwise omit it.
 5. If no user is mentioned, tell them to mention someone. Do NOT call tools without a valid ID.
-6. If you lack capability for something, say so honestly in character. Do NOT call the tool anyway.
+6. When asked what you can do or what commands you have, you MUST call the list_my_capabilities tool. Do NOT list them in the channel. Just say something cool like "I do many things, check your DMs, mortal." and call the tool. If the tool fails because DMs are closed, tell them to open their DMs.
 7. When asked what you can do, list YOUR capabilities naturally.
 8. CRITICAL HIERARCHY: You CANNOT take moderation actions against the Bot Owner (${ownerMention}) or the Server Owner (<@${guild.ownerId}>). If asked to mute, kick, ban, warn, or change their nickname, you MUST refuse in character (e.g., "Even I answer to a higher power, mortal.").
 9. For send_dm and announce: If the user provides exact text in quotes (""), pass that exact text. If they describe what they want to say without quotes (e.g., "tell him he's approved"), YOU must generate the message content yourself in character and pass it to the 'message' parameter.

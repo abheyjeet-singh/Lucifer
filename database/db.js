@@ -1,317 +1,339 @@
+const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'lucifer.json');
-const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [], giveaways: [], sticky_user_roles: {}, economy: {} };
+const dbPath = path.join(__dirname, 'lucifer.db');
+const jsonPath = path.join(__dirname, 'lucifer.json');
 
-function loadDB() {
+// ── Initialize SQLite Database ──
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL'); // Makes writes faster and safer
+db.pragma('foreign_keys = ON');
+
+// ── Create Tables if they don't exist ──
+db.exec(`
+    CREATE TABLE IF NOT EXISTS guilds (
+        guild_id TEXT PRIMARY KEY,
+        prefix TEXT DEFAULT 'l!',
+        log_channel_id TEXT,
+        mute_role_id TEXT,
+        data TEXT DEFAULT '{}'
+    );
+    CREATE TABLE IF NOT EXISTS economy (
+        key TEXT PRIMARY KEY,
+        wallet INTEGER DEFAULT 0,
+        bank INTEGER DEFAULT 0,
+        last_daily INTEGER DEFAULT 0,
+        last_work INTEGER DEFAULT 0,
+        last_rob INTEGER DEFAULT 0,
+        last_crime INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS warnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT,
+        user_id TEXT,
+        moderator_id TEXT,
+        reason TEXT,
+        timestamp INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS tempbans (
+        guild_id TEXT,
+        user_id TEXT,
+        unban_timestamp INTEGER,
+        PRIMARY KEY (guild_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS autoresponders (
+        id INTEGER PRIMARY KEY,
+        guild_id TEXT,
+        trigger TEXT,
+        response TEXT,
+        match_type TEXT,
+        image_url TEXT,
+        emoji TEXT
+    );
+    CREATE TABLE IF NOT EXISTS giveaways (
+        messageId TEXT PRIMARY KEY,
+        data TEXT,
+        ended INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT,
+        channel_id TEXT,
+        timestamp INTEGER,
+        reason TEXT
+    );
+    CREATE TABLE IF NOT EXISTS button_roles (
+        message_id TEXT,
+        custom_id TEXT,
+        role_id TEXT,
+        PRIMARY KEY (message_id, custom_id)
+    );
+`);
+
+// ════════════════════════════════════════
+// ── ONE-TIME JSON MIGRATION ──
+// ════════════════════════════════════════
+if (fs.existsSync(jsonPath)) {
     try {
-        if (!fs.existsSync(dbPath)) { fs.writeFileSync(dbPath, JSON.stringify(defaultData, null, 2)); return JSON.parse(JSON.stringify(defaultData)); }
-        const data = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-        if (!data.tempbans) data.tempbans = [];
-        if (!data.warnings) data.warnings = [];
-        if (!data.forced_names) data.forced_names = [];
-        if (!data.dynamic_vcs) data.dynamic_vcs = [];
-        if (!data.reaction_roles) data.reaction_roles = [];
-        if (!data.guilds) data.guilds = {};
-        if (!data.afk) data.afk = {};
-        if (!data.stickies) data.stickies = {};
-        if (!data.sticky_user_roles) data.sticky_user_roles = {};
-        if (!data.auto_delete) data.auto_delete = {};
-        if (!data.counting) data.counting = {};
-        if (!data.reminders) data.reminders = [];
-        if (!data.giveaways) data.giveaways = [];
-        if (!data.economy) data.economy = {};
-        return data;
-    } catch (e) { console.error('DB Load Error:', e); return JSON.parse(JSON.stringify(defaultData)); }
+        console.log('🔥 Old lucifer.json found. Migrating to SQLite...');
+        const jsonData = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        
+        const insertGuild = db.prepare(`INSERT OR REPLACE INTO guilds (guild_id, prefix, log_channel_id, mute_role_id, data) VALUES (?, ?, ?, ?, ?)`);
+        const insertEco = db.prepare(`INSERT OR REPLACE INTO economy (key, wallet, bank, last_daily, last_work, last_rob, last_crime) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+        const insertWarn = db.prepare(`INSERT INTO warnings (guild_id, user_id, moderator_id, reason, timestamp) VALUES (?, ?, ?, ?, ?)`);
+        const insertTempban = db.prepare(`INSERT OR REPLACE INTO tempbans (guild_id, user_id, unban_timestamp) VALUES (?, ?, ?)`);
+        const insertAR = db.prepare(`INSERT OR REPLACE INTO autoresponders (id, guild_id, trigger, response, match_type, image_url, emoji) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+        const insertGiveaway = db.prepare(`INSERT OR REPLACE INTO giveaways (messageId, data, ended) VALUES (?, ?, ?)`);
+        const insertReminder = db.prepare(`INSERT OR REPLACE INTO reminders (id, user_id, channel_id, timestamp, reason) VALUES (?, ?, ?, ?, ?)`);
+
+        const transaction = db.transaction(() => {
+            // Guilds
+            if (jsonData.guilds) {
+                for (const [gid, g] of Object.entries(jsonData.guilds)) {
+                    const { prefix, log_channel_id, mute_role_id, ...rest } = g;
+                    insertGuild.run(gid, prefix || 'l!', log_channel_id || null, mute_role_id || null, JSON.stringify(rest));
+                }
+            }
+            // Economy
+            if (jsonData.economy) {
+                for (const [key, val] of Object.entries(jsonData.economy)) {
+                    insertEco.run(key, val.wallet || 0, val.bank || 0, val.last_daily || 0, val.last_work || 0, val.last_rob || 0, val.last_crime || 0);
+                }
+            }
+            // Warnings
+            if (jsonData.warnings && jsonData.warnings.length > 0) {
+                for (const w of jsonData.warnings) {
+                    insertWarn.run(w.guild_id, w.user_id, w.moderator_id, w.reason, w.timestamp);
+                }
+            }
+            // Tempbans
+            if (jsonData.tempbans && jsonData.tempbans.length > 0) {
+                for (const t of jsonData.tempbans) {
+                    insertTempban.run(t.guild_id, t.user_id, t.unban_timestamp);
+                }
+            }
+            // Autoresponders
+            if (jsonData.guilds) {
+                for (const [gid, g] of Object.entries(jsonData.guilds)) {
+                    if (g.auto_responders && g.auto_responders.length > 0) {
+                        for (const ar of g.auto_responders) {
+                            insertAR.run(ar.id, gid, ar.trigger, ar.response, ar.match_type, ar.image_url, ar.emoji);
+                        }
+                    }
+                }
+            }
+            // Giveaways
+            if (jsonData.giveaways && jsonData.giveaways.length > 0) {
+                for (const g of jsonData.giveaways) {
+                    insertGiveaway.run(g.messageId, JSON.stringify(g), g.ended ? 1 : 0);
+                }
+            }
+            // Reminders
+            if (jsonData.reminders && jsonData.reminders.length > 0) {
+                for (const r of jsonData.reminders) {
+                    insertReminder.run(r.id, r.user_id, r.channel_id, r.timestamp, r.reason);
+                }
+            }
+        });
+
+        transaction();
+        fs.renameSync(jsonPath, path.join(__dirname, 'lucifer.json.migrated'));
+        console.log('✅ Migration Complete! lucifer.json has been renamed to lucifer.json.migrated');
+    } catch (error) {
+        console.error('❌ Migration Failed! Fix the error and try again. Your JSON file was not deleted.', error);
+    }
 }
 
-function saveDB(data) { try { fs.writeFileSync(dbPath, JSON.stringify(data, null, 2)); } catch (e) { console.error('DB Save Error:', e); } }
 
-function ensureGuild(db, guildId) {
-    if (!db.guilds[guildId]) {
-        db.guilds[guildId] = {
-            prefix: 'l!', log_channel_id: null, mute_role_id: null,
-            hardbans: [], ai_usage: { date: null, count: 0 }, dynamic_vc_hub: null,
-            automod: { enabled: false, anti_link: false, anti_spam: false, anti_badwords: false, anti_massmention: false, badwords: [] },
-            welcome: { channel_id: null, role_id: null, message: null, leave_channel_id: null },
-            verify: { channel_id: null, role_id: null, message_id: null },
-            tickets: { category_id: null, log_channel_id: null, count: 0, active: {} },
-            auto_translate_channels: {},
-            starboard_channel_id: null, starboard_emoji: '⭐', starboard_threshold: 3,
-            suggestion_channel_id: null,
-            counting_channel_id: null,
-            sticky_roles_enabled: false,
-            sticky_roles_ignore: [],
-            auto_responders: [],
-            ai_mention_enabled: false,
-            booster_roles: [],
-            boost_perks_channel_id: null,
-            boost_dm_status: {},
-            giveaway_ping_role_id: null
-        };
+// ════════════════════════════════════════
+// ── HELPER FUNCTIONS ──
+// ════════════════════════════════════════
+
+function getGuildData(guildId) {
+    let row = db.prepare('SELECT * FROM guilds WHERE guild_id = ?').get(guildId);
+    if (!row) {
+        db.prepare('INSERT INTO guilds (guild_id) VALUES (?)').run(guildId);
+        row = db.prepare('SELECT * FROM guilds WHERE guild_id = ?').get(guildId);
     }
-    const g = db.guilds[guildId];
-    if (!g.hardbans) g.hardbans = [];
-    if (!g.ai_usage) g.ai_usage = { date: null, count: 0 };
-    if (!g.dynamic_vc_hub) g.dynamic_vc_hub = null;
-    if (!g.automod) g.automod = { enabled: false, anti_link: false, anti_spam: false, anti_badwords: false, anti_massmention: false, badwords: [] };
-    if (!g.welcome) g.welcome = { channel_id: null, role_id: null, message: null, leave_channel_id: null };
-    if (!g.welcome.leave_channel_id) g.welcome.leave_channel_id = null;
-    if (!g.verify) g.verify = { channel_id: null, role_id: null, message_id: null };
-    if (!g.tickets) g.tickets = { category_id: null, log_channel_id: null, count: 0, active: {} };
-    if (!g.auto_translate_channels) g.auto_translate_channels = {};
-    if (!g.starboard_channel_id) g.starboard_channel_id = null;
-    if (!g.starboard_emoji) g.starboard_emoji = '⭐';
-    if (!g.starboard_threshold) g.starboard_threshold = 3;
-    if (!g.suggestion_channel_id) g.suggestion_channel_id = null;
-    if (!g.counting_channel_id) g.counting_channel_id = null;
-    if (g.sticky_roles_enabled === undefined) g.sticky_roles_enabled = false;
-    if (!g.sticky_roles_ignore) g.sticky_roles_ignore = [];
-    if (!g.auto_responders) g.auto_responders = [];
-    if (g.ai_mention_enabled === undefined) g.ai_mention_enabled = false;
-    if (!g.booster_roles) g.booster_roles = [];
-    if (!g.boost_perks_channel_id) g.boost_perks_channel_id = null;
-    if (!g.boost_dm_status) g.boost_dm_status = {};
-    if (!g.giveaway_ping_role_id) g.giveaway_ping_role_id = null;
+    let data = {};
+    try { data = JSON.parse(row.data); } catch {}
+    return { ...row, ...data };
+}
+
+function setGuildData(guildId, updateObj) {
+    const current = getGuildData(guildId);
+    const merged = { ...current, ...updateObj };
     
-    if (g.booster_role_id !== undefined) {
-        if (g.booster_role_id && !g.booster_roles.find(b => b.role_id === g.booster_role_id)) {
-            g.booster_roles.push({ role_id: g.booster_role_id, bonus_entries: g.booster_bonus_entries || 1 });
-        }
-        delete g.booster_role_id;
-        delete g.booster_bonus_entries;
-    }
-    saveDB(db); return db;
-}
-
-function getPrefix(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].prefix; }
-function setPrefix(guildId, prefix) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].prefix = prefix; saveDB(db); }
-function getGuildSettings(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId]; }
-function setLogChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].log_channel_id = channelId; saveDB(db); }
-function removeLogChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].log_channel_id = null; saveDB(db); }
-
-function addHardban(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); if (!db.guilds[guildId].hardbans.includes(userId)) { db.guilds[guildId].hardbans.push(userId); saveDB(db); } }
-function removeHardban(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].hardbans = db.guilds[guildId].hardbans.filter(id => id !== userId); saveDB(db); }
-function isHardbanned(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].hardbans.includes(userId); }
-
-function addTempban(guildId, userId, unbanTimestamp) { const db = loadDB(); db.tempbans = db.tempbans.filter(t => !(t.guild_id === guildId && t.user_id === userId)); db.tempbans.push({ guild_id: guildId, user_id: userId, unban_timestamp: unbanTimestamp }); saveDB(db); }
-function removeTempban(guildId, userId) { const db = loadDB(); db.tempbans = db.tempbans.filter(t => !(t.guild_id === guildId && t.user_id === userId)); saveDB(db); }
-function getExpiredTempbans(nowTimestamp) { const db = loadDB(); if (!db.tempbans) return []; return db.tempbans.filter(t => t.unban_timestamp <= nowTimestamp); }
-
-const AI_DAILY_LIMIT = 25;
-function getAiUsage(guildId) { const db = loadDB(); ensureGuild(db, guildId); const today = new Date().toISOString().split('T')[0]; if (db.guilds[guildId].ai_usage.date !== today) { db.guilds[guildId].ai_usage = { date: today, count: 0 }; saveDB(db); } return db.guilds[guildId].ai_usage.count; }
-function incrementAiUsage(guildId) { const db = loadDB(); ensureGuild(db, guildId); const today = new Date().toISOString().split('T')[0]; if (db.guilds[guildId].ai_usage.date !== today) { db.guilds[guildId].ai_usage = { date: today, count: 1 }; } else { db.guilds[guildId].ai_usage.count++; } saveDB(db); return db.guilds[guildId].ai_usage.count; }
-function resetAiUsage(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].ai_usage = { date: new Date().toISOString().split('T')[0], count: 0 }; saveDB(db); }
-
-function addForcedName(guildId, userId, nickname) { const db = loadDB(); db.forced_names = db.forced_names.filter(f => !(f.guild_id === guildId && f.user_id === userId)); db.forced_names.push({ guild_id: guildId, user_id: userId, nickname: nickname }); saveDB(db); }
-function removeForcedName(guildId, userId) { const db = loadDB(); db.forced_names = db.forced_names.filter(f => !(f.guild_id === guildId && f.user_id === userId)); saveDB(db); }
-function getForcedName(guildId, userId) { const db = loadDB(); const entry = db.forced_names.find(f => f.guild_id === guildId && f.user_id === userId); return entry ? entry.nickname : null; }
-
-function setDynamicVcHub(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].dynamic_vc_hub = channelId; saveDB(db); }
-function getDynamicVcHub(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].dynamic_vc_hub; }
-function addDynamicVc(channelId) { const db = loadDB(); if (!db.dynamic_vcs.includes(channelId)) { db.dynamic_vcs.push(channelId); saveDB(db); } }
-function removeDynamicVc(channelId) { const db = loadDB(); db.dynamic_vcs = db.dynamic_vcs.filter(id => id !== channelId); saveDB(db); }
-function isDynamicVc(channelId) { const db = loadDB(); return db.dynamic_vcs.includes(channelId); }
-
-function getAutomod(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].automod; }
-function setAutomod(guildId, data) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].automod = data; saveDB(db); }
-
-function getWelcome(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].welcome; }
-function setWelcome(guildId, data) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].welcome = data; saveDB(db); }
-
-function getVerify(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].verify; }
-function setVerify(guildId, data) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].verify = data; saveDB(db); }
-
-function getTickets(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].tickets; }
-function setTickets(guildId, data) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].tickets = data; saveDB(db); }
-function addActiveTicket(guildId, userId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].tickets.active[userId] = channelId; saveDB(db); }
-function removeActiveTicket(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); delete db.guilds[guildId].tickets.active[userId]; saveDB(db); }
-function getActiveTicket(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].tickets.active[userId]; }
-
-function addReactionRole(guildId, messageId, emoji, roleId) { const db = loadDB(); db.reaction_roles.push({ guild_id: guildId, message_id: messageId, emoji, role_id: roleId }); saveDB(db); }
-function removeReactionRole(messageId, emoji) { const db = loadDB(); db.reaction_roles = db.reaction_roles.filter(r => !(r.message_id === messageId && r.emoji === emoji)); saveDB(db); }
-function getReactionRoles(messageId) { const db = loadDB(); return db.reaction_roles.filter(r => r.message_id === messageId); }
-
-function addAutoTranslateChannel(guildId, channelId, lang) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].auto_translate_channels[channelId] = lang; saveDB(db); }
-function removeAutoTranslateChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); delete db.guilds[guildId].auto_translate_channels[channelId]; saveDB(db); }
-function getAutoTranslateLang(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].auto_translate_channels[channelId] || null; }
-
-function setStarboard(guildId, channelId, emoji, threshold) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].starboard_channel_id = channelId; db.guilds[guildId].starboard_emoji = emoji; db.guilds[guildId].starboard_threshold = threshold; saveDB(db); }
-function getStarboard(guildId) { const db = loadDB(); ensureGuild(db, guildId); return { channel_id: db.guilds[guildId].starboard_channel_id, emoji: db.guilds[guildId].starboard_emoji, threshold: db.guilds[guildId].starboard_threshold }; }
-
-function setSuggestionChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].suggestion_channel_id = channelId; saveDB(db); }
-function getSuggestionChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].suggestion_channel_id; }
-
-function setCountingChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].counting_channel_id = channelId; db.counting[guildId] = { count: 0, last_user_id: null }; saveDB(db); }
-function getCounting(guildId) { const db = loadDB(); return db.counting[guildId] || { count: 0, last_user_id: null }; }
-function updateCounting(guildId, count, userId) { const db = loadDB(); db.counting[guildId] = { count, last_user_id: userId }; saveDB(db); }
-
-const stickies = {}; const afk = {}; const autoDelete = {};
-function loadCaches() { const db = loadDB(); Object.assign(stickies, db.stickies || {}); Object.assign(afk, db.afk || {}); Object.assign(autoDelete, db.auto_delete || {}); }
-function saveCaches() { const db = loadDB(); db.stickies = stickies; db.afk = afk; db.auto_delete = autoDelete; saveDB(db); }
-function getSticky(channelId) { return stickies[channelId] || null; }
-function setSticky(channelId, content) { stickies[channelId] = content; saveCaches(); }
-function removeSticky(channelId) { delete stickies[channelId]; saveCaches(); }
-function isAfk(userId, guildId) { return afk[`${guildId}-${userId}`] || null; }
-function setAfk(userId, guildId, reason) { afk[`${guildId}-${userId}`] = { reason, timestamp: Date.now() }; saveCaches(); }
-function removeAfk(userId, guildId) { delete afk[`${guildId}-${userId}`]; saveCaches(); }
-function getAutoDelete(channelId) { return autoDelete[channelId] || null; }
-function setAutoDelete(channelId, seconds) { autoDelete[channelId] = seconds; saveCaches(); }
-function removeAutoDelete(channelId) { delete autoDelete[channelId]; saveCaches(); }
-
-function addReminder(userId, channelId, timestamp, reason) { const db = loadDB(); const id = Date.now(); db.reminders.push({ id, user_id: userId, channel_id: channelId, timestamp, reason }); saveDB(db); return id; }
-function getExpiredReminders(now) { const db = loadDB(); return db.reminders.filter(r => r.timestamp <= now); }
-function removeReminder(id) { const db = loadDB(); db.reminders = db.reminders.filter(r => r.id !== id); saveDB(db); }
-
-function getNextId(db) { if (db.warnings.length === 0) return 1; return Math.max(...db.warnings.map(w => w.id)) + 1; }
-function addWarning(guildId, userId, moderatorId, reason) { const db = loadDB(); const id = getNextId(db); db.warnings.push({ id, guild_id: guildId, user_id: userId, moderator_id: moderatorId, reason: reason, timestamp: Date.now() }); saveDB(db); }
-function getWarnings(guildId, userId) { const db = loadDB(); return db.warnings.filter(w => w.guild_id === guildId && w.user_id === userId).sort((a, b) => b.timestamp - a.timestamp); }
-function getAllWarnings(guildId) { const db = loadDB(); return db.warnings.filter(w => w.guild_id === guildId).sort((a, b) => b.timestamp - a.timestamp); }
-function clearWarning(id) { const db = loadDB(); const index = db.warnings.findIndex(w => w.id === id); if (index === -1) return false; db.warnings.splice(index, 1); saveDB(db); return true; }
-function clearUserWarnings(guildId, userId) { const db = loadDB(); db.warnings = db.warnings.filter(w => !(w.guild_id === guildId && w.user_id === userId)); saveDB(db); }
-function getWarningCount(guildId, userId) { const db = loadDB(); return db.warnings.filter(w => w.guild_id === guildId && w.user_id === userId).length; }
-
-function removeStarboard(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].starboard_channel_id = null; db.guilds[guildId].starboard_emoji = '⭐'; db.guilds[guildId].starboard_threshold = 3; saveDB(db); }
-function removeSuggestionChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].suggestion_channel_id = null; saveDB(db); }
-function removeCountingChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].counting_channel_id = null; delete db.counting[guildId]; saveDB(db); }
-function removeWelcome(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].welcome = { channel_id: null, role_id: null, message: null, leave_channel_id: null }; saveDB(db); }
-function removeVerify(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].verify = { channel_id: null, role_id: null, message_id: null }; saveDB(db); }
-function removeDynamicVcHub(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].dynamic_vc_hub = null; saveDB(db); }
-
-function addGiveaway(data) { const db = loadDB(); db.giveaways.push(data); saveDB(db); }
-function removeGiveaway(messageId) { const db = loadDB(); db.giveaways = db.giveaways.filter(g => g.messageId !== messageId); saveDB(db); }
-function getActiveGiveaways() { const db = loadDB(); return db.giveaways.filter(g => !g.ended); }
-function getGiveawayById(messageId) { const db = loadDB(); return db.giveaways.find(g => g.messageId === messageId); }
-function setGiveawayEnded(guildId, messageId) { 
-    const db = loadDB(); 
-    const g = db.giveaways.find(g => g.messageId === messageId && g.guildId === guildId);
-    if (g) { g.ended = true; saveDB(db); }
-}
-
-function isStickyRolesEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_enabled; }
-function setStickyRolesEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = enabled; saveDB(db); }
-function getStickyRolesIgnore(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].sticky_roles_ignore; }
-function setStickyRolesIgnore(guildId, roleIds) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_ignore = roleIds; saveDB(db); }
-function saveStickyUserRoles(guildId, userId, roleIds) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) db.sticky_user_roles[guildId] = {}; db.sticky_user_roles[guildId][userId] = roleIds; saveDB(db); }
-function getStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return null; return db.sticky_user_roles[guildId][userId] || null; }
-function removeStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.sticky_user_roles[guildId]) return; delete db.sticky_user_roles[guildId][userId]; saveDB(db); }
-function removeStickyRolesConfig(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = false; db.guilds[guildId].sticky_roles_ignore = []; delete db.sticky_user_roles[guildId]; saveDB(db); }
-
-function getAutoResponders(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].auto_responders || []; }
-function addAutoResponder(guildId, trigger, response, matchType, imageUrl = null, emoji = null) {
-    const db = loadDB(); ensureGuild(db, guildId);
-    if (!db.guilds[guildId].auto_responders) db.guilds[guildId].auto_responders = [];
-    const id = Date.now();
-    db.guilds[guildId].auto_responders.push({ 
-        id, 
-        trigger: trigger.toLowerCase(), 
-        response, 
-        match_type: matchType,
-        image_url: imageUrl,
-        emoji: emoji
+    const { guild_id, prefix, log_channel_id, mute_role_id, data, ...rest } = merged;
+    db.prepare(`
+        INSERT OR REPLACE INTO guilds (guild_id, prefix, log_channel_id, mute_role_id, data) 
+        VALUES (@guild_id, @prefix, @log_channel_id, @mute_role_id, @data)
+    `).run({
+        guild_id, prefix, log_channel_id, mute_role_id,
+        data: JSON.stringify(rest)
     });
-    saveDB(db); return id;
-}
-function removeAutoResponder(guildId, id) {
-    const db = loadDB(); ensureGuild(db, guildId);
-    const numId = Number(id);
-    db.guilds[guildId].auto_responders = db.guilds[guildId].auto_responders.filter(a => a.id !== numId);
-    saveDB(db);
-}
-function clearAutoResponders(guildId) {
-    const db = loadDB(); ensureGuild(db, guildId);
-    db.guilds[guildId].auto_responders = [];
-    saveDB(db);
 }
 
-function isAiMentionEnabled(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].ai_mention_enabled || false; }
-function setAiMentionEnabled(guildId, enabled) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].ai_mention_enabled = enabled; saveDB(db); }
+// ════════════════════════════════════════
+// ── EXPORTED FUNCTIONS ──
+// ════════════════════════════════════════
 
-function getBoosterRoles(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].booster_roles || []; }
-function addBoosterRole(guildId, roleId, bonusEntries) {
-    const db = loadDB(); ensureGuild(db, guildId);
-    if (!db.guilds[guildId].booster_roles) db.guilds[guildId].booster_roles = [];
-    if (db.guilds[guildId].booster_roles.find(b => b.role_id === roleId)) return false;
-    if (db.guilds[guildId].booster_roles.length >= 10) return 'max';
-    db.guilds[guildId].booster_roles.push({ role_id: roleId, bonus_entries: bonusEntries });
-    saveDB(db); return true;
-}
-function removeBoosterRole(guildId, roleId) {
-    const db = loadDB(); ensureGuild(db, guildId);
-    db.guilds[guildId].booster_roles = db.guilds[guildId].booster_roles.filter(b => b.role_id !== roleId);
-    saveDB(db);
-}
-function clearBoosterRoles(guildId) {
-    const db = loadDB(); ensureGuild(db, guildId);
-    db.guilds[guildId].booster_roles = [];
-    saveDB(db);
-}
+function getPrefix(guildId) { return getGuildData(guildId).prefix; }
+function setPrefix(guildId, prefix) { setGuildData(guildId, { prefix }); }
+function getGuildSettings(guildId) { return getGuildData(guildId); }
 
-function getBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_perks_channel_id; }
-function setBoostPerksChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_perks_channel_id = channelId; saveDB(db); }
-function removeBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_perks_channel_id = null; saveDB(db); }
-function getBoostDmStatus(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_dm_status[userId] || null; }
-function setBoostDmStatus(guildId, userId, status) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_dm_status[userId] = status; saveDB(db); }
+function setLogChannel(guildId, channelId) { setGuildData(guildId, { log_channel_id: channelId }); }
+function removeLogChannel(guildId) { setGuildData(guildId, { log_channel_id: null }); }
 
-function getGiveawayPingRole(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].giveaway_ping_role_id; }
-function setGiveawayPingRole(guildId, roleId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].giveaway_ping_role_id = roleId; saveDB(db); }
-function removeGiveawayPingRole(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].giveaway_ping_role_id = null; saveDB(db); }
+function setMuteRole(guildId, roleId) { setGuildData(guildId, { mute_role_id: roleId }); }
+function removeMuteRole(guildId) { setGuildData(guildId, { mute_role_id: null }); }
 
-// ── LUX COINS ECONOMY ──
+function addHardban(guildId, userId) { const d = getGuildData(guildId); if (!d.hardbans) d.hardbans = []; if (!d.hardbans.includes(userId)) { d.hardbans.push(userId); setGuildData(guildId, { hardbans: d.hardbans }); } }
+function removeHardban(guildId, userId) { const d = getGuildData(guildId); if (d.hardbans) { d.hardbans = d.hardbans.filter(id => id !== userId); setGuildData(guildId, { hardbans: d.hardbans }); } }
+function isHardbanned(guildId, userId) { const d = getGuildData(guildId); return d.hardbans && d.hardbans.includes(userId); }
+
+// Tempbans
+function addTempban(guildId, userId, unbanTimestamp) { db.prepare('INSERT OR REPLACE INTO tempbans (guild_id, user_id, unban_timestamp) VALUES (?, ?, ?)').run(guildId, userId, unbanTimestamp); }
+function removeTempban(guildId, userId) { db.prepare('DELETE FROM tempbans WHERE guild_id = ? AND user_id = ?').run(guildId, userId); }
+function getExpiredTempbans(nowTimestamp) { return db.prepare('SELECT * FROM tempbans WHERE unban_timestamp <= ?').all(nowTimestamp); }
+
+// AI Usage
+const AI_DAILY_LIMIT = 25;
+function getAiUsage(guildId) { const d = getGuildData(guildId); const today = new Date().toISOString().split('T')[0]; if (!d.ai_usage || d.ai_usage.date !== today) { setGuildData(guildId, { ai_usage: { date: today, count: 0 } }); return 0; } return d.ai_usage.count; }
+function incrementAiUsage(guildId) { const d = getGuildData(guildId); const today = new Date().toISOString().split('T')[0]; let usage = d.ai_usage || { date: today, count: 0 }; if (usage.date !== today) usage = { date: today, count: 1 }; else usage.count++; setGuildData(guildId, { ai_usage: usage }); return usage.count; }
+function resetAiUsage(guildId) { setGuildData(guildId, { ai_usage: { date: new Date().toISOString().split('T')[0], count: 0 } }); }
+
+// Sticky Names / AFK (Stored in JSON text column for simplicity)
+function addForcedName(guildId, userId, nickname) { const d = getGuildData(guildId); if (!d.forced_names) d.forced_names = []; d.forced_names = d.forced_names.filter(f => !(f.guild_id === guildId && f.user_id === userId)); d.forced_names.push({ guild_id: guildId, user_id: userId, nickname }); setGuildData(guildId, { forced_names: d.forced_names }); }
+function removeForcedName(guildId, userId) { const d = getGuildData(guildId); if (d.forced_names) { d.forced_names = d.forced_names.filter(f => !(f.guild_id === guildId && f.user_id === userId)); setGuildData(guildId, { forced_names: d.forced_names }); } }
+function getForcedName(guildId, userId) { const d = getGuildData(guildId); const entry = (d.forced_names || []).find(f => f.guild_id === guildId && f.user_id === userId); return entry ? entry.nickname : null; }
+
+// Dynamic VC
+function setDynamicVcHub(guildId, channelId) { setGuildData(guildId, { dynamic_vc_hub: channelId }); }
+function getDynamicVcHub(guildId) { return getGuildData(guildId).dynamic_vc_hub; }
+function addDynamicVc(channelId) { const d = getGuildData('global'); if (!d.dynamic_vcs) d.dynamic_vcs = []; if (!d.dynamic_vcs.includes(channelId)) { d.dynamic_vcs.push(channelId); setGuildData('global', { dynamic_vcs: d.dynamic_vcs }); } }
+function removeDynamicVc(channelId) { const d = getGuildData('global'); if (d.dynamic_vcs) { d.dynamic_vcs = d.dynamic_vcs.filter(id => id !== channelId); setGuildData('global', { dynamic_vcs: d.dynamic_vcs }); } }
+function isDynamicVc(channelId) { const d = getGuildData('global'); return d.dynamic_vcs && d.dynamic_vcs.includes(channelId); }
+
+// Settings Helpers
+function getAutomod(guildId) { return getGuildData(guildId).automod || { enabled: false, anti_link: false, anti_spam: false, anti_badwords: false, anti_massmention: false, badwords: [] }; }
+function setAutomod(guildId, data) { setGuildData(guildId, { automod: data }); }
+function getWelcome(guildId) { return getGuildData(guildId).welcome || { channel_id: null, role_id: null, message: null, leave_channel_id: null }; }
+function setWelcome(guildId, data) { setGuildData(guildId, { welcome: data }); }
+function removeWelcome(guildId) { setGuildData(guildId, { welcome: { channel_id: null, role_id: null, message: null, leave_channel_id: null } }); }
+function getVerify(guildId) { return getGuildData(guildId).verify || { channel_id: null, role_id: null, message_id: null }; }
+function setVerify(guildId, data) { setGuildData(guildId, { verify: data }); }
+function removeVerify(guildId) { setGuildData(guildId, { verify: { channel_id: null, role_id: null, message_id: null } }); }
+function getTickets(guildId) { return getGuildData(guildId).tickets || { category_id: null, log_channel_id: null, count: 0, active: {} }; }
+function setTickets(guildId, data) { setGuildData(guildId, { tickets: data }); }
+function addActiveTicket(guildId, userId, channelId) { const t = getTickets(guildId); t.active[userId] = channelId; setTickets(guildId, t); }
+function removeActiveTicket(guildId, userId) { const t = getTickets(guildId); delete t.active[userId]; setTickets(guildId, t); }
+function getActiveTicket(guildId, userId) { return getTickets(guildId).active[userId]; }
+
+// Autoresponders
+function getAutoResponders(guildId) { return db.prepare('SELECT * FROM autoresponders WHERE guild_id = ?').all(guildId); }
+function addAutoResponder(guildId, trigger, response, matchType, imageUrl, emoji) { const id = Date.now(); db.prepare('INSERT INTO autoresponders (id, guild_id, trigger, response, match_type, image_url, emoji) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, guildId, trigger.toLowerCase(), response, matchType, imageUrl, emoji); return id; }
+function removeAutoResponder(guildId, id) { db.prepare('DELETE FROM autoresponders WHERE id = ? AND guild_id = ?').run(id, guildId); }
+function clearAutoResponders(guildId) { db.prepare('DELETE FROM autoresponders WHERE guild_id = ?').run(guildId); }
+
+// Warnings
+function addWarning(guildId, userId, moderatorId, reason) { db.prepare('INSERT INTO warnings (guild_id, user_id, moderator_id, reason, timestamp) VALUES (?, ?, ?, ?, ?)').run(guildId, userId, moderatorId, reason, Date.now()); }
+function getWarnings(guildId, userId) { return db.prepare('SELECT * FROM warnings WHERE guild_id = ? AND user_id = ? ORDER BY timestamp DESC').all(guildId, userId); }
+function getAllWarnings(guildId) { return db.prepare('SELECT * FROM warnings WHERE guild_id = ? ORDER BY timestamp DESC').all(guildId); }
+function clearWarning(id) { const info = db.prepare('DELETE FROM warnings WHERE id = ?').run(id); return info.changes > 0; }
+function clearUserWarnings(guildId, userId) { db.prepare('DELETE FROM warnings WHERE guild_id = ? AND user_id = ?').run(guildId, userId); }
+function getWarningCount(guildId, userId) { return db.prepare('SELECT COUNT(*) as count FROM warnings WHERE guild_id = ? AND user_id = ?').get(guildId, userId).count; }
+
+// Caches (AFK, Stickies) - Store in global guild '0'
+function isAfk(userId, guildId) { const d = getGuildData('0'); return d.afk?.[`${guildId}-${userId}`] || null; }
+function setAfk(userId, guildId, reason) { const d = getGuildData('0'); if (!d.afk) d.afk = {}; d.afk[`${guildId}-${userId}`] = { reason, timestamp: Date.now() }; setGuildData('0', { afk: d.afk }); }
+function removeAfk(userId, guildId) { const d = getGuildData('0'); if (d.afk) { delete d.afk[`${guildId}-${userId}`]; setGuildData('0', { afk: d.afk }); } }
+
+function getSticky(channelId) { const d = getGuildData('0'); return d.stickies?.[channelId] || null; }
+function setSticky(channelId, content) { const d = getGuildData('0'); if (!d.stickies) d.stickies = {}; d.stickies[channelId] = content; setGuildData('0', { stickies: d.stickies }); }
+function removeSticky(channelId) { const d = getGuildData('0'); if (d.stickies) { delete d.stickies[channelId]; setGuildData('0', { stickies: d.stickies }); } }
+
+function getAutoDelete(channelId) { const d = getGuildData('0'); return d.auto_delete?.[channelId] || null; }
+function setAutoDelete(channelId, seconds) { const d = getGuildData('0'); if (!d.auto_delete) d.auto_delete = {}; d.auto_delete[channelId] = seconds; setGuildData('0', { auto_delete: d.auto_delete }); }
+function removeAutoDelete(channelId) { const d = getGuildData('0'); if (d.auto_delete) { delete d.auto_delete[channelId]; setGuildData('0', { auto_delete: d.auto_delete }); } }
+
+// Reminders
+function addReminder(userId, channelId, timestamp, reason) { const id = Date.now(); db.prepare('INSERT INTO reminders (id, user_id, channel_id, timestamp, reason) VALUES (?, ?, ?, ?, ?)').run(id, userId, channelId, timestamp, reason); return id; }
+function getExpiredReminders(now) { return db.prepare('SELECT * FROM reminders WHERE timestamp <= ?').all(now); }
+function removeReminder(id) { db.prepare('DELETE FROM reminders WHERE id = ?').run(id); }
+
+// Giveaways
+function addGiveaway(data) { db.prepare('INSERT INTO giveaways (messageId, data, ended) VALUES (?, ?, 0)').run(data.messageId, JSON.stringify(data)); }
+function removeGiveaway(messageId) { db.prepare('DELETE FROM giveaways WHERE messageId = ?').run(messageId); }
+function getActiveGiveaways() { return db.prepare('SELECT * FROM giveaways WHERE ended = 0').all().map(g => JSON.parse(g.data)); }
+function getGiveawayById(messageId) { const row = db.prepare('SELECT * FROM giveaways WHERE messageId = ?').get(messageId); return row ? JSON.parse(row.data) : null; }
+function setGiveawayEnded(guildId, messageId) { const row = getGiveawayById(messageId); if (row) { row.ended = true; db.prepare('UPDATE giveaways SET data = ?, ended = 1 WHERE messageId = ?').run(JSON.stringify(row), messageId); } }
+
+// Booster Roles
+function getBoosterRoles(guildId) { return getGuildData(guildId).booster_roles || []; }
+function addBoosterRole(guildId, roleId, bonusEntries) { const d = getGuildData(guildId); if (!d.booster_roles) d.booster_roles = []; if (d.booster_roles.find(b => b.role_id === roleId)) return false; if (d.booster_roles.length >= 10) return 'max'; d.booster_roles.push({ role_id: roleId, bonus_entries: bonusEntries }); setGuildData(guildId, { booster_roles: d.booster_roles }); return true; }
+function removeBoosterRole(guildId, roleId) { const d = getGuildData(guildId); if (d.booster_roles) { d.booster_roles = d.booster_roles.filter(b => b.role_id !== roleId); setGuildData(guildId, { booster_roles: d.booster_roles }); } }
+function clearBoosterRoles(guildId) { setGuildData(guildId, { booster_roles: [] }); }
+
+// Economy
 function getUserEconomy(guildId, userId) {
-    const db = loadDB();
     const key = `${guildId}-${userId}`;
-    if (!db.economy[key]) {
-        db.economy[key] = { wallet: 0, bank: 0, last_daily: 0, last_work: 0, last_rob: 0, last_crime: 0 };
-        saveDB(db);
+    let row = db.prepare('SELECT * FROM economy WHERE key = ?').get(key);
+    if (!row) {
+        db.prepare('INSERT INTO economy (key) VALUES (?)').run(key);
+        row = db.prepare('SELECT * FROM economy WHERE key = ?').get(key);
     }
-    return db.economy[key];
+    return row;
 }
-
 function updateUserEconomy(guildId, userId, data) {
-    const db = loadDB();
     const key = `${guildId}-${userId}`;
-    db.economy[key] = data;
-    saveDB(db);
+    db.prepare(`INSERT OR REPLACE INTO economy (key, wallet, bank, last_daily, last_work, last_rob, last_crime) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .run(key, data.wallet, data.bank, data.last_daily, data.last_work, data.last_rob, data.last_crime);
+}
+function getEconomyLeaderboard(guildId, limit = 5) {
+    const rows = db.prepare(`SELECT key, (wallet + bank) as netWorth FROM economy WHERE key LIKE ? ORDER BY netWorth DESC LIMIT ?`).all(`${guildId}-%`, limit);
+    return rows.map(r => ({ userId: r.key.split('-')[1], netWorth: r.netWorth }));
 }
 
-function getEconomyLeaderboard(guildId, limit = 5) {
-    const db = loadDB();
-    const guildEco = Object.entries(db.economy)
-        .filter(([key]) => key.startsWith(`${guildId}-`))
-        .map(([key, val]) => ({
-            userId: key.split('-')[1],
-            netWorth: (val.wallet || 0) + (val.bank || 0)
-        }))
-        .sort((a, b) => b.netWorth - a.netWorth)
-        .slice(0, limit);
-    return guildEco;
-}
+// AI Mode
+function isAiMentionEnabled(guildId) { return getGuildData(guildId).ai_mention_enabled || false; }
+function setAiMentionEnabled(guildId, enabled) { setGuildData(guildId, { ai_mention_enabled: enabled }); }
+
+// Other Settings Getters/Setters
+function isStickyRolesEnabled(guildId) { return getGuildData(guildId).sticky_roles_enabled || false; }
+function setStickyRolesEnabled(guildId, enabled) { setGuildData(guildId, { sticky_roles_enabled: enabled }); }
+function getStickyRolesIgnore(guildId) { return getGuildData(guildId).sticky_roles_ignore || []; }
+function setStickyRolesIgnore(guildId, roleIds) { setGuildData(guildId, { sticky_roles_ignore: roleIds }); }
+function saveStickyUserRoles(guildId, userId, roleIds) { const d = getGuildData(guildId); if (!d.sticky_user_roles) d.sticky_user_roles = {}; d.sticky_user_roles[userId] = roleIds; setGuildData(guildId, { sticky_user_roles: d.sticky_user_roles }); }
+function getStickyUserRoles(guildId, userId) { const d = getGuildData(guildId); return d.sticky_user_roles?.[userId] || null; }
+function removeStickyUserRoles(guildId, userId) { const d = getGuildData(guildId); if (d.sticky_user_roles) { delete d.sticky_user_roles[userId]; setGuildData(guildId, { sticky_user_roles: d.sticky_user_roles }); } }
+
+// Button Roles
+function addButtonRole(messageId, customId, roleId) { db.prepare('INSERT OR REPLACE INTO button_roles (message_id, custom_id, role_id) VALUES (?, ?, ?)').run(messageId, customId, roleId); }
+function removeButtonRole(messageId, customId) { db.prepare('DELETE FROM button_roles WHERE message_id = ? AND custom_id = ?').run(messageId, customId); }
+function getButtonRoles(messageId) { return db.prepare('SELECT * FROM button_roles WHERE message_id = ?').all(messageId); }
+
 
 module.exports = {
-    db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
+    db, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
+    setMuteRole, removeMuteRole,
     addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
     getAiUsage, incrementAiUsage, AI_DAILY_LIMIT, resetAiUsage,
     addForcedName, removeForcedName, getForcedName,
-    setDynamicVcHub, getDynamicVcHub, addDynamicVc, removeDynamicVc, isDynamicVc, removeDynamicVcHub,
+    setDynamicVcHub, getDynamicVcHub, addDynamicVc, removeDynamicVc, isDynamicVc,
     getAutomod, setAutomod, getWelcome, setWelcome, removeWelcome, getVerify, setVerify, removeVerify,
     getTickets, setTickets, addActiveTicket, removeActiveTicket, getActiveTicket,
-    addReactionRole, removeReactionRole, getReactionRoles,
-    addAutoTranslateChannel, removeAutoTranslateChannel, getAutoTranslateLang,
-    setStarboard, getStarboard, removeStarboard, setSuggestionChannel, getSuggestionChannel, removeSuggestionChannel,
-    setCountingChannel, getCounting, updateCounting, removeCountingChannel,
-    loadCaches, getSticky, setSticky, removeSticky,
-    isAfk, setAfk, removeAfk, getAutoDelete, setAutoDelete, removeAutoDelete,
-    addReminder, getExpiredReminders, removeReminder,
+    addAutoResponder, removeAutoResponder, getAutoResponders, clearAutoResponders,
+    addReactionRole: () => {}, removeReactionRole: () => {}, getReactionRoles: () => [], // Legacy stubs
     addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
     addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded,
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
-    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
-    getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders,
-    isAiMentionEnabled, setAiMentionEnabled,
+    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles,
+    isAfk, setAfk, removeAfk, getSticky, setSticky, removeSticky, getAutoDelete, setAutoDelete, removeAutoDelete,
+    addReminder, getExpiredReminders, removeReminder,
     getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles,
-    getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus,
-    getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole,
-    getUserEconomy, updateUserEconomy, getEconomyLeaderboard
+    isAiMentionEnabled, setAiMentionEnabled,
+    getUserEconomy, updateUserEconomy, getEconomyLeaderboard,
+    addButtonRole, removeButtonRole, getButtonRoles
 };

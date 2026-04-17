@@ -19,7 +19,7 @@ client.snipes = new Map();
 const slashData = loadCommands(client);
 loadEvents(client);
 
-loadCaches(); // Load AFK, Stickies, Auto-Delete into memory
+//loadCaches(); // Load AFK, Stickies, Auto-Delete into memory
 
 client.once('clientReady', () => {
     registerSlashCommands(slashData, process.env.CLIENT_ID, process.env.TOKEN);

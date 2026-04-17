@@ -1,0 +1,150 @@
+{
+  "guilds": {
+    "1491117822208770251": {
+      "prefix": "!",
+      "log_channel_id": "1491146257731813548",
+      "mute_role_id": null,
+      "hardbans": [],
+      "ai_usage": {
+        "date": "2026-04-17",
+        "count": 15
+      },
+      "dynamic_vc_hub": null,
+      "automod": {
+        "enabled": false,
+        "anti_link": false,
+        "anti_spam": false,
+        "anti_badwords": false,
+        "anti_massmention": false,
+        "badwords": []
+      },
+      "welcome": {
+        "channel_id": null,
+        "role_id": null,
+        "message": null,
+        "leave_channel_id": null
+      },
+      "verify": {
+        "channel_id": null,
+        "role_id": null,
+        "message_id": null
+      },
+      "tickets": {
+        "category_id": null,
+        "log_channel_id": null,
+        "count": 0,
+        "active": {}
+      },
+      "auto_translate_channels": {},
+      "starboard_channel_id": null,
+      "starboard_emoji": "⭐",
+      "starboard_threshold": 3,
+      "suggestion_channel_id": null,
+      "counting_channel_id": null,
+      "sticky_roles_enabled": false,
+      "sticky_roles_ignore": [],
+      "auto_responders": [
+        {
+          "id": 1776451703726,
+          "trigger": "hai",
+          "response": "hello!!!! <:happy:1493901341892808825>",
+          "match_type": "contains",
+          "image_url": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExemozaGZ1cmN0Znl0NjlnemtqdThlM3l5aXd3MW1iY3NrMDlpbDRkeSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/vFKqnCdLPNOKc/giphy.gif",
+          "emoji": "<:cool:1493908041614233710>"
+        },
+        {
+          "id": 1776452636634,
+          "trigger": "<@1231529572403773501>",
+          "response": "HEADMANAGER!!!!",
+          "match_type": "contains",
+          "image_url": "https://tenor.com/l02VleKcfvg.gif",
+          "emoji": "<:headmanagement:1493918792651116634>"
+        },
+        {
+          "id": 1776452850077,
+          "trigger": "<@1360574326864085054>",
+          "response": "HEAD DEVLOPPER!!!!!! <:cool:1493908041614233710>",
+          "match_type": "contains",
+          "image_url": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGZ4b2NjcXpvZzA0cmpxcGJpcnNucWhhem5vbnZpM3dwaGhzY2JodCZlcD12MV9naWZzX3NlYXJjaCZjdD1n/FeAxKYM3TUjaCr3y0T/giphy.gif",
+          "emoji": "<:cool:1493908041614233710>"
+        },
+        {
+          "id": 1776457710732,
+          "trigger": "<@1488505418828484679>",
+          "response": "JESTER/HOI",
+          "match_type": "contains",
+          "image_url": "https://tenor.com/iCFdKcKU0Km.gif",
+          "emoji": "😈"
+        }
+      ],
+      "ai_mention_enabled": true,
+      "booster_roles": [
+        {
+          "role_id": "1493839752401784833",
+          "bonus_entries": 5
+        },
+        {
+          "role_id": "1491151674830618785",
+          "bonus_entries": 4
+        }
+      ],
+      "boost_perks_channel_id": "1491134751002595389",
+      "boost_dm_status": {
+        "1231529572403773501": "welcomed"
+      },
+      "giveaway_ping_role_id": "1491150718676238426"
+    }
+  },
+  "warnings": [],
+  "tempbans": [],
+  "forced_names": [],
+  "dynamic_vcs": [],
+  "reaction_roles": [],
+  "afk": {},
+  "stickies": {},
+  "auto_delete": {},
+  "counting": {},
+  "reminders": [],
+  "giveaways": [
+    {
+      "guildId": "1491117822208770251",
+      "channelId": "1491136070119723118",
+      "messageId": "1494662483921862667",
+      "endsAt": 1776512104947,
+      "winners": 1,
+      "prize": "DRAGON FLY IN GAG <:cool:1493908041614233710>",
+      "hostId": "1488505418828484679"
+    },
+    {
+      "guildId": "1491117822208770251",
+      "channelId": "1491145909151469570",
+      "messageId": "1494749023066914957",
+      "endsAt": 1776446937821,
+      "winners": 1,
+      "prize": "none",
+      "hostId": "1360574326864085054",
+      "ended": true
+    }
+  ],
+  "sticky_user_roles": {},
+  "economy": {
+    "1491117822208770251-1360574326864085054": {
+      "wallet": 370,
+      "bank": 0,
+      "last_daily": 1776447312344
+    },
+    "1491117822208770251-1488505418828484679": {
+      "wallet": 0,
+      "bank": 500,
+      "last_daily": 1776447900799
+    },
+    "1491117822208770251-1300980534398418974": {
+      "wallet": 0,
+      "bank": 0,
+      "last_daily": 1776458685415,
+      "last_work": 0,
+      "last_rob": 0,
+      "last_crime": 0
+    }
+  }
+}
