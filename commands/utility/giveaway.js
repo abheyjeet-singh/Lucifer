@@ -221,17 +221,17 @@ module.exports = {
         await client.user.fetch(true).catch(() => {});
         const bannerURL = getBotBanner(client);
 
-        // Build booster info
+        // Build extra entries info
         const boosterRoles = getBoosterRoles(guild.id);
-        let boosterInfo = '';
+        let extraEntriesInfo = '';
         if (boosterRoles.length > 0) {
-            const lines = boosterRoles.map(br => `🚀 <@&${br.role_id}>: +${br.bonus_entries} entries`);
-            boosterInfo = '\n\n**🚀 Booster Bonuses:**\n' + lines.join('\n');
+            const lines = boosterRoles.map(br => `✨ <@&${br.role_id}>: +${br.bonus_entries} extra entries`);
+            extraEntriesInfo = '\n\n**✨ Extra Entries:**\n' + lines.join('\n');
         }
 
         const startEmbed = createEmbed({ 
             title: '🎁 The Devil\'s Lottery', 
-            description: `**Prize:** ${prize}\n**Winners:** ${winners}\n**Host:** ${hostMention}\n**Ends:** <t:${endsAtDiscord}:R>${boosterInfo}\n\nReact with 🎉 to enter!`, 
+            description: `**Prize:** ${prize}\n**Winners:** ${winners}\n**Host:** ${hostMention}\n**Ends:** <t:${endsAtDiscord}:R>${extraEntriesInfo}\n\nReact with 🎉 to enter!`, 
             color: THEME.primary,
             image: bannerURL,
             footer: { text: `🔥 Hosted by the Lord of Hell` }
