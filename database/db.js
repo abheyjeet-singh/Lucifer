@@ -44,7 +44,9 @@ function ensureGuild(db, guildId) {
             sticky_roles_ignore: [],
             auto_responders: [],
             ai_mention_enabled: false,
-            booster_roles: []
+            booster_roles: [],
+            boost_perks_channel_id: null,
+            boost_dm_status: {}
         };
     }
     const g = db.guilds[guildId];
@@ -67,6 +69,9 @@ function ensureGuild(db, guildId) {
     if (!g.auto_responders) g.auto_responders = [];
     if (g.ai_mention_enabled === undefined) g.ai_mention_enabled = false;
     if (!g.booster_roles) g.booster_roles = [];
+    if (!g.boost_perks_channel_id) g.boost_perks_channel_id = null;
+    if (!g.boost_dm_status) g.boost_dm_status = {};
+    
     // Migration: remove old single booster keys if they exist
     if (g.booster_role_id !== undefined) {
         if (g.booster_role_id && !g.booster_roles.find(b => b.role_id === g.booster_role_id)) {
@@ -92,7 +97,7 @@ function addTempban(guildId, userId, unbanTimestamp) { const db = loadDB(); db.t
 function removeTempban(guildId, userId) { const db = loadDB(); db.tempbans = db.tempbans.filter(t => !(t.guild_id === guildId && t.user_id === userId)); saveDB(db); }
 function getExpiredTempbans(nowTimestamp) { const db = loadDB(); if (!db.tempbans) return []; return db.tempbans.filter(t => t.unban_timestamp <= nowTimestamp); }
 
-const AI_DAILY_LIMIT = 50;
+const AI_DAILY_LIMIT = 25;
 function getAiUsage(guildId) { const db = loadDB(); ensureGuild(db, guildId); const today = new Date().toISOString().split('T')[0]; if (db.guilds[guildId].ai_usage.date !== today) { db.guilds[guildId].ai_usage = { date: today, count: 0 }; saveDB(db); } return db.guilds[guildId].ai_usage.count; }
 function incrementAiUsage(guildId) { const db = loadDB(); ensureGuild(db, guildId); const today = new Date().toISOString().split('T')[0]; if (db.guilds[guildId].ai_usage.date !== today) { db.guilds[guildId].ai_usage = { date: today, count: 1 }; } else { db.guilds[guildId].ai_usage.count++; } saveDB(db); return db.guilds[guildId].ai_usage.count; }
 function resetAiUsage(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].ai_usage = { date: new Date().toISOString().split('T')[0], count: 0 }; saveDB(db); }
@@ -213,9 +218,7 @@ function getBoosterRoles(guildId) { const db = loadDB(); ensureGuild(db, guildId
 function addBoosterRole(guildId, roleId, bonusEntries) {
     const db = loadDB(); ensureGuild(db, guildId);
     if (!db.guilds[guildId].booster_roles) db.guilds[guildId].booster_roles = [];
-    // Check duplicate
     if (db.guilds[guildId].booster_roles.find(b => b.role_id === roleId)) return false;
-    // Check max 10
     if (db.guilds[guildId].booster_roles.length >= 10) return 'max';
     db.guilds[guildId].booster_roles.push({ role_id: roleId, bonus_entries: bonusEntries });
     saveDB(db); return true;
@@ -229,6 +232,18 @@ function clearBoosterRoles(guildId) {
     const db = loadDB(); ensureGuild(db, guildId);
     db.guilds[guildId].booster_roles = [];
     saveDB(db);
+}
+
+// ── BOOST PERKS CHANNEL & DM TRACKING ──
+function getBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_perks_channel_id; }
+function setBoostPerksChannel(guildId, channelId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_perks_channel_id = channelId; saveDB(db); }
+function removeBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_perks_channel_id = null; saveDB(db); }
+
+function getBoostDmStatus(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_dm_status[userId] || null; }
+function setBoostDmStatus(guildId, userId, status) { 
+    const db = loadDB(); ensureGuild(db, guildId); 
+    db.guilds[guildId].boost_dm_status[userId] = status; 
+    saveDB(db); 
 }
 
 module.exports = {
@@ -252,5 +267,6 @@ module.exports = {
     saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
     getAutoResponders, addAutoResponder, removeAutoResponder, clearAutoResponders,
     isAiMentionEnabled, setAiMentionEnabled,
-    getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles
+    getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles,
+    getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus
 };

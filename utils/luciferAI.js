@@ -260,6 +260,7 @@ async function executeTool(toolName, args, message, client) {
     const guild = message.guild;
     const member = message.member;
     const botMember = guild.members.me;
+    const botOwnerId = process.env.BOT_OWNER_ID;
 
     // ── Permission Check ──
     const requiredPerm = TOOL_PERMS[toolName];
@@ -276,6 +277,11 @@ async function executeTool(toolName, args, message, client) {
         }
         if (args.user_id === member.id) return 'FAILED:SELF|Cannot target yourself.';
         if (args.user_id === botMember.id) return 'FAILED:BOT|Cannot target Lucifer.';
+        
+        // ── Owner & Hierarchy Protection ──
+        if (botOwnerId && args.user_id === botOwnerId) return 'FAILED:OWNER|You cannot target the Creator. Even the Devil has a master.';
+        if (args.user_id === guild.ownerId) return 'FAILED:GUILD_OWNER|That soul rules this realm. Even I must bow to the Server Owner.';
+
         const target = await guild.members.fetch(args.user_id).catch(() => null);
         if (!target) return `FAILED:NOT_FOUND|User <@${args.user_id}> not in server.`;
         if (!target.moderatable && ['mute_user', 'kick_user', 'ban_user', 'unmute_user', 'change_nickname', 'warn_user'].includes(toolName)) {
@@ -464,11 +470,12 @@ function buildCapabilities(permissions) {
 // ── SYSTEM PROMPT ──
 // ════════════════════════════════════════
 
-function buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, isFollowUp, permissions) {
+function buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, isFollowUp, permissions, botOwnerId) {
     const capabilities = buildCapabilities(permissions);
+    const ownerMention = botOwnerId ? `<@${botOwnerId}>` : 'the Creator';
 
     if (isFollowUp) {
-        return `You are Lucifer Morningstar. Continue naturally. No code blocks, no raw IDs, stay in character, 1-3 emojis max. Your capabilities for this user:\n${capabilities}`;
+        return `You are Lucifer Morningstar. Continue naturally. No code blocks, no raw IDs, stay in character, 1-3 emojis max. Your capabilities for this user:\n${capabilities}\nRemember: You CANNOT take action against the Bot Owner (${ownerMention}) or Server Owner (<@${guild.ownerId}>).`;
     }
 
     const userCtx = mentionedUsers.size > 0
@@ -491,6 +498,7 @@ ABSOLUTE RULES - VIOLATION CAUSES CRASHES:
 4. If no user is mentioned, tell them to mention someone. Do NOT call tools without a valid ID.
 5. If you lack capability for something, say so honestly in character. Do NOT call the tool anyway.
 6. When asked what you can do, list YOUR capabilities naturally.
+7. CRITICAL HIERARCHY: You CANNOT take moderation actions against the Bot Owner (${ownerMention}) or the Server Owner (<@${guild.ownerId}>). If asked to mute, kick, ban, warn, or change their nickname, you MUST refuse in character (e.g., "Even I answer to a higher power, mortal.").
 
 TOOL RESULT FORMAT:
 Results come as: STATUS|DATA
@@ -499,6 +507,8 @@ Results come as: STATUS|DATA
 - FAILED:INVALID_ID| = bad ID. Say: "Mention them properly with @."
 - FAILED:HIERARCHY| = target too high. Say: "That soul outranks even me."
 - FAILED:NOT_FOUND| = user not in server. Say: "That soul is not in this realm."
+- FAILED:OWNER| = targeting bot owner. Say: "Even the Devil answers to a higher power. I cannot touch the Creator."
+- FAILED:GUILD_OWNER| = targeting server owner. Say: "That soul rules this realm, even I must bow."
 - LIST| = data to display. Format it nicely.
 - INFO| = user info. Format with bold labels.
 
@@ -525,13 +535,14 @@ ROLES: ${roleContext}`;
 }
 
 // ════════════════════════════════════════
-// ── MAIN HANDLER ─═
+// ── MAIN HANDLER ──
 
 async function handleLuciferAI(message, client, isFollowUp) {
     const guild = message.guild;
     const member = message.member;
     const channel = message.channel;
     const permissions = member.permissions;
+    const botOwnerId = process.env.BOT_OWNER_ID;
 
     cleanExpiredThreads();
 
@@ -559,10 +570,10 @@ async function handleLuciferAI(message, client, isFollowUp) {
         messages = thread.messages;
         messages.push({ role: 'user', content: userMessage });
         if (messages.length > MAX_HISTORY + 1) { const s = messages[0]; const r = messages.slice(-MAX_HISTORY); messages = [s, ...r]; }
-        messages[0] = { role: 'system', content: buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, true, permissions) };
+        messages[0] = { role: 'system', content: buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, true, permissions, botOwnerId) };
     } else {
         messages = [
-            { role: 'system', content: buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, false, permissions) },
+            { role: 'system', content: buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, false, permissions, botOwnerId) },
             { role: 'user', content: userMessage }
         ];
     }
