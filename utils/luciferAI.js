@@ -277,9 +277,9 @@ async function executeTool(toolName, args, message, client) {
         if (args.user_id === member.id) return 'FAILED:SELF|Cannot target yourself.';
         if (args.user_id === botMember.id) return 'FAILED:BOT|Cannot target Lucifer.';
         const target = await guild.members.fetch(args.user_id).catch(() => null);
-        if (!target) return `FAILED:NOT_FOUND|User ${args.user_id} not in server.`;
+        if (!target) return `FAILED:NOT_FOUND|User <@${args.user_id}> not in server.`;
         if (!target.moderatable && ['mute_user', 'kick_user', 'ban_user', 'unmute_user', 'change_nickname', 'warn_user'].includes(toolName)) {
-            return `FAILED:HIERARCHY|Cannot act on ${target.displayName}, they outrank Lucifer.`;
+            return `FAILED:HIERARCHY|Cannot act on <@${args.user_id}>, they outrank Lucifer.`;
         }
     }
 
@@ -305,29 +305,29 @@ async function executeTool(toolName, args, message, client) {
                 const duration = Math.min(Math.max(args.duration_minutes || 5, 1), 40320);
                 await target.timeout(duration * 60 * 1000, args.reason || 'Muted by Lucifer AI');
                 const durStr = duration >= 60 ? `${Math.floor(duration/60)}h${duration%60 ? duration%60+'m' : ''}` : `${duration}m`;
-                return `OK|Muted **${target.displayName}** for ${durStr}. Reason: ${args.reason || 'Not specified'}`;
+                return `OK|Muted <@${args.user_id}> for ${durStr}. Reason: ${args.reason || 'Not specified'}`;
             }
             case 'kick_user': {
                 const target = await guild.members.fetch(args.user_id);
                 await target.kick(args.reason || 'Kicked by Lucifer AI');
-                return `OK|Kicked **${target.displayName}**. Reason: ${args.reason || 'Not specified'}`;
+                return `OK|Kicked <@${args.user_id}>. Reason: ${args.reason || 'Not specified'}`;
             }
             case 'ban_user': {
                 const target = await guild.members.fetch(args.user_id);
                 const del = Math.min(args.delete_message_days || 0, 7);
                 await target.ban({ deleteMessageDays: del, reason: args.reason || 'Banned by Lucifer AI' });
-                return `OK|Banned **${target.displayName}**. Reason: ${args.reason || 'Not specified'}`;
+                return `OK|Banned <@${args.user_id}>. Reason: ${args.reason || 'Not specified'}`;
             }
             case 'unmute_user': {
                 const target = await guild.members.fetch(args.user_id);
                 await target.timeout(null, 'Unmuted by Lucifer AI');
-                return `OK|Unmuted **${target.displayName}**.`;
+                return `OK|Unmuted <@${args.user_id}>.`;
             }
             case 'warn_user': {
                 const target = await guild.members.fetch(args.user_id);
                 db.addWarning(guild.id, args.user_id, client.user.id, args.reason || 'Warned by Lucifer AI');
                 const total = db.getWarningCount(guild.id, args.user_id);
-                return `OK|Warned **${target.displayName}**. Reason: ${args.reason || 'Not specified'}. They now have **${total}** warning(s).`;
+                return `OK|Warned <@${args.user_id}>. Reason: ${args.reason || 'Not specified'}. They now have **${total}** warning(s).`;
             }
             case 'clear_messages': {
                 const amount = Math.min(Math.max(args.amount || 1, 1), 100);
@@ -337,7 +337,7 @@ async function executeTool(toolName, args, message, client) {
             case 'change_nickname': {
                 const target = await guild.members.fetch(args.user_id);
                 await target.setNickname(args.nickname, 'Changed by Lucifer AI');
-                return `OK|Changed **${target.displayName}**'s nickname to **${args.nickname}**.`;
+                return `OK|Changed <@${args.user_id}>'s nickname to **${args.nickname}**.`;
             }
             case 'lock_channel': {
                 await message.channel.permissionOverwrites.edit(guild.id, { SendMessages: false });
@@ -351,19 +351,19 @@ async function executeTool(toolName, args, message, client) {
                 const target = await guild.members.fetch(args.user_id);
                 const role = guild.roles.cache.get(args.role_id);
                 await target.roles.add(role, 'Added by Lucifer AI');
-                return `OK|Added **${role.name}** to **${target.displayName}**.`;
+                return `OK|Added <@&${args.role_id}> to <@${args.user_id}>.`;
             }
             case 'remove_role': {
                 const target = await guild.members.fetch(args.user_id);
                 const role = guild.roles.cache.get(args.role_id);
                 await target.roles.remove(role, 'Removed by Lucifer AI');
-                return `OK|Removed **${role.name}** from **${target.displayName}**.`;
+                return `OK|Removed <@&${args.role_id}> from <@${args.user_id}>.`;
             }
             case 'check_user_info': {
                 const target = await guild.members.fetch(args.user_id);
                 const warnings = db.getWarningCount(guild.id, args.user_id);
-                const roleNames = target.roles.cache.filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position).map(r => r.name).join(', ') || 'None';
-                return `INFO|**Name:** ${target.displayName}\n**Joined:** <t:${Math.floor(target.joinedTimestamp / 1000)}:R>\n**Warnings:** ${warnings}\n**Roles:** ${roleNames}`;
+                const roleMentions = target.roles.cache.filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position).map(r => `<@&${r.id}>`).join(', ') || 'None';
+                return `INFO|**Name:** <@${args.user_id}>\n**Joined:** <t:${Math.floor(target.joinedTimestamp / 1000)}:R>\n**Warnings:** ${warnings}\n**Roles:** ${roleMentions}`;
             }
 
             // ── GIVEAWAY ──
@@ -410,14 +410,14 @@ async function executeTool(toolName, args, message, client) {
                 if (result === false) return 'FAILED|That role is already a booster role. Remove it first.';
                 if (result === 'max') return 'FAILED|Max 10 booster roles reached.';
                 const role = guild.roles.cache.get(args.role_id);
-                return `OK|Added **${role?.name || 'Role'}** as booster with **+${bonus}** entries (${bonus + 1}x chance in giveaways).`;
+                return `OK|Added <@&${args.role_id}> as booster with **+${bonus}** entries (${bonus + 1}x chance in giveaways).`;
             }
             case 'booster_remove': {
                 const current = db.getBoosterRoles(guild.id);
                 if (!current.find(b => b.role_id === args.role_id)) return 'FAILED|That role is not a booster role.';
                 db.removeBoosterRole(guild.id, args.role_id);
                 const role = guild.roles.cache.get(args.role_id);
-                return `OK|Removed **${role?.name || 'Role'}** from booster roles.`;
+                return `OK|Removed <@&${args.role_id}> from booster roles.`;
             }
             case 'booster_list': {
                 const list = db.getBoosterRoles(guild.id);
@@ -474,8 +474,8 @@ function buildSystemPrompt(guild, member, channel, mentionedUsers, roleContext, 
     const userCtx = mentionedUsers.size > 0
         ? mentionedUsers.map(u => {
             const m = guild.members.cache.get(u.id);
-            const roles = m ? m.roles.cache.filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position).map(r => r.name).join(', ') : 'None';
-            return `DisplayName: "${m?.displayName || u.username}" | ID: ${u.id} | Roles: ${roles || 'None'}`;
+            const roles = m ? m.roles.cache.filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position).map(r => `${r.name} (<@&${r.id}>)`).join(', ') : 'None';
+            return `DisplayName: "${m?.displayName || u.username}" | Ping: <@${u.id}> | ID: ${u.id} | Roles: ${roles || 'None'}`;
         }).join('\n')
         : 'No users mentioned.';
 
@@ -507,7 +507,9 @@ RESPONSE STYLE:
 - 1-3 emojis max. Use 🔥👑⚔️🦅🌌🍷📜👁️
 - 1-3 sentences for actions, 2-4 for chat.
 - For lists/booster/giveaway info, format nicely with line breaks.
-- NEVER show IDs, tool names, or JSON to the user.
+- CRITICAL: When referring to a user, ALWAYS use their Ping value exactly (e.g., <@123456789>) so they get a real Discord ping. NEVER just type their display name. Example: "I've muted <@123456789>" NOT "I've muted John".
+- When referring to a role, use its Ping value (e.g., <@&987654321>) so it creates a clickable role mention.
+- NEVER show raw numeric IDs, tool names, or JSON to the user. The <@ID> and <@&ID> formats are exceptions — they render as clickable pings, not raw numbers.
 
 GIVEAWAY: duration is in MINUTES. 1h=60, 1d=1440, 30min=30.
 
@@ -535,7 +537,7 @@ async function handleLuciferAI(message, client, isFollowUp) {
 
     const mentionedUsers = message.mentions.users.filter(u => u.id !== client.user.id);
     const roles = guild.roles.cache.filter(r => r.id !== guild.id && !r.managed).sort((a, b) => b.position - a.position).first(15);
-    const roleContext = roles.map(r => `${r.name} (ID:${r.id})`).join(', ');
+    const roleContext = roles.map(r => `${r.name} (Ping:<@&${r.id}> ID:${r.id})`).join(', ');
 
     // Clean user message — KEEP IDs alongside names
     const botMentionRegex = new RegExp(`<@!?${client.user.id}>`, 'g');

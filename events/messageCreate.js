@@ -120,7 +120,7 @@ module.exports = {
                         const { handleLuciferAI } = require('../utils/luciferAI');
                         const aiResponse = await handleLuciferAI(message, client, false);
                         incrementAiUsage(message.guild.id);
-                        return message.reply(aiResponse).catch(() => {});
+                        return message.reply({ content: aiResponse, allowedMentions: { parse: ['users', 'roles'] } }).catch(() => {});
                     } catch (e) {
                         console.error('AI Error:', e);
                         return message.reply('💀 The cosmic forces are interfering. Try again shortly.').catch(() => {});
@@ -134,7 +134,7 @@ module.exports = {
                     const { handleLuciferAI } = require('../utils/luciferAI');
                     const aiResponse = await handleLuciferAI(message, client, true);
                     incrementAiUsage(message.guild.id);
-                    return message.reply(aiResponse).catch(() => {});
+                    return message.reply({ content: aiResponse, allowedMentions: { parse: ['users', 'roles'] } }).catch(() => {});
                 } catch (e) {
                     console.error('AI Error:', e);
                     return message.reply('💀 The cosmic forces are interfering.').catch(() => {});
