@@ -128,6 +128,16 @@ const tools = [
     {
         type: 'function',
         function: {
+            name: 'set_slowmode',
+            description: 'Set slowmode in the current channel. Requires ManageChannels permission.',
+            parameters: { type: 'object', properties: {
+                seconds: { type: 'number', description: 'Seconds of slowmode (0 to disable, max 21600)' }
+            }, required: ['seconds'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'add_role',
             description: 'Add a role to a user. Requires ManageRoles permission.',
             parameters: { type: 'object', properties: {
@@ -160,12 +170,39 @@ const tools = [
     {
         type: 'function',
         function: {
+            name: 'check_balance',
+            description: 'Check the Lux Coin wallet and bank balance of a user. No special permissions needed.',
+            parameters: { type: 'object', properties: {
+                user_id: { type: 'string', description: 'Numeric Discord user ID from MENTIONED USERS section' }
+            }, required: ['user_id'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'economy_leaderboard',
+            description: 'Get the top 5 richest users in the server based on Lux Coins. No special permissions needed.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'server_info',
+            description: 'Get general information and stats about the server. No special permissions needed.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'giveaway_start',
             description: 'Start a giveaway. Requires ManageMessages permission.',
             parameters: { type: 'object', properties: {
                 prize: { type: 'string', description: 'What is being given away' },
                 duration_minutes: { type: 'number', description: 'Duration in minutes (60=1h, 1440=1d)' },
-                winners: { type: 'number', description: 'Number of winners (default 1)' }
+                winners: { type: 'number', description: 'Number of winners (default 1)' },
+                channel_id: { type: 'string', description: 'Numeric Discord channel ID from CHANNEL MENTIONS. Use this if the user specifies a specific channel. Defaults to current channel if not specified.' }
             }, required: ['prize', 'duration_minutes'] }
         }
     },
@@ -223,6 +260,172 @@ const tools = [
             description: 'Remove all booster roles. Requires Administrator permission.',
             parameters: { type: 'object', properties: {} }
         }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'vc_disconnect',
+            description: 'Disconnect a user from their voice channel. Requires MoveMembers permission.',
+            parameters: { type: 'object', properties: {
+                user_id: { type: 'string', description: 'Numeric Discord user ID from MENTIONED USERS section' },
+                reason: { type: 'string', description: 'Reason' }
+            }, required: ['user_id'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'vc_move',
+            description: 'Move a user to a specific voice channel. Requires MoveMembers permission.',
+            parameters: { type: 'object', properties: {
+                user_id: { type: 'string', description: 'Numeric Discord user ID from MENTIONED USERS section' },
+                channel_id: { type: 'string', description: 'Numeric Discord Channel ID from CHANNEL MENTIONS' },
+                reason: { type: 'string', description: 'Reason' }
+            }, required: ['user_id', 'channel_id'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'pin_message',
+            description: 'Pin a message in the channel. If replying to a message, pin that. Otherwise, pin the last message sent. Requires ManageMessages permission.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'unpin_message',
+            description: 'Unpin the most recently pinned message in the channel. Requires ManageMessages permission.',
+            parameters: { type: 'object', properties: {} }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'automod_add_badword',
+            description: 'Add a word to the server automod blacklist. Requires Administrator permission.',
+            parameters: { type: 'object', properties: {
+                word: { type: 'string', description: 'The word or phrase to block' }
+            }, required: ['word'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'automod_toggle',
+            description: 'Enable or disable an automod feature. Requires Administrator permission.',
+            parameters: { type: 'object', properties: {
+                feature: { type: 'string', description: 'The feature to toggle: anti_link, anti_spam, anti_badwords, anti_massmention' },
+                enabled: { type: 'boolean', description: 'True to enable, false to disable' }
+            }, required: ['feature', 'enabled'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'fine_user',
+            description: 'Fine a user by deducting Lux Coins from their wallet. Requires Administrator permission.',
+            parameters: { type: 'object', properties: {
+                user_id: { type: 'string', description: 'Numeric Discord user ID from MENTIONED USERS section' },
+                amount: { type: 'number', description: 'Amount of Lux Coins to deduct' },
+                reason: { type: 'string', description: 'Reason for the fine' }
+            }, required: ['user_id', 'amount'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'create_poll',
+            description: 'Create a simple poll with a question and options. Requires ManageMessages permission.',
+            parameters: { type: 'object', properties: {
+                question: { type: 'string', description: 'The poll question' },
+                options: { type: 'string', description: 'Comma-separated poll options (e.g., "Yes, No, Maybe"). Leave empty for simple Yes/No.' }
+            }, required: ['question'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_reminder',
+            description: 'Set a reminder for the user. No special permissions needed.',
+            parameters: { type: 'object', properties: {
+                duration_minutes: { type: 'number', description: 'Minutes from now until the reminder' },
+                reason: { type: 'string', description: 'What to remind them about' }
+            }, required: ['duration_minutes', 'reason'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'send_dm',
+            description: 'Send a Direct Message to a user. Requires Administrator permission. If the user provides exact text in quotes, use that. If they describe what to say without quotes, generate an appropriate message yourself in character.',
+            parameters: { type: 'object', properties: {
+                user_id: { type: 'string', description: 'Numeric Discord user ID from MENTIONED USERS section' },
+                message: { type: 'string', description: 'The exact message to DM the user' }
+            }, required: ['user_id', 'message'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_welcome_channel',
+            description: 'Set the channel where welcome messages are sent. Requires Administrator permission.',
+            parameters: { type: 'object', properties: {
+                channel_id: { type: 'string', description: 'Numeric Discord Channel ID from CHANNEL MENTIONS' }
+            }, required: ['channel_id'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'set_log_channel',
+            description: 'Set the channel for moderation logs. Requires Administrator permission.',
+            parameters: { type: 'object', properties: {
+                channel_id: { type: 'string', description: 'Numeric Discord Channel ID from CHANNEL MENTIONS' }
+            }, required: ['channel_id'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'change_prefix',
+            description: 'Change the bot prefix for the server. Requires Administrator permission.',
+            parameters: { type: 'object', properties: {
+                prefix: { type: 'string', description: 'The new prefix (1-5 characters)' }
+            }, required: ['prefix'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'close_ticket',
+            description: 'Close the current ticket channel. Requires ManageChannels permission.',
+            parameters: { type: 'object', properties: {
+                reason: { type: 'string', description: 'Reason for closing' }
+            }, required: [] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'add_user_to_ticket',
+            description: 'Add a user to the current ticket channel so they can see it. Requires ManageChannels permission.',
+            parameters: { type: 'object', properties: {
+                user_id: { type: 'string', description: 'Numeric Discord user ID from MENTIONED USERS section' }
+            }, required: ['user_id'] }
+        }
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'announce',
+            description: 'Send a formatted announcement to a specific channel. Requires ManageMessages permission. If the user provides exact text in quotes, use that. If they describe what to announce without quotes, generate a dramatic, formal announcement in character.',
+            parameters: { type: 'object', properties: {
+                channel_id: { type: 'string', description: 'Numeric Discord Channel ID from CHANNEL MENTIONS' },
+                message: { type: 'string', description: 'The announcement message to send' }
+            }, required: ['channel_id', 'message'] }
+        }
     }
 ];
 
@@ -240,16 +443,36 @@ const TOOL_PERMS = {
     change_nickname: 'ManageNicknames',
     lock_channel: 'ManageChannels',
     unlock_channel: 'ManageChannels',
+    set_slowmode: 'ManageChannels',
     add_role: 'ManageRoles',
     remove_role: 'ManageRoles',
     check_user_info: null,
+    check_balance: null,
+    economy_leaderboard: null,
+    server_info: null,
     giveaway_start: 'ManageMessages',
     giveaway_list: 'ManageMessages',
     giveaway_cancel: 'ManageMessages',
     booster_add: 'Administrator',
     booster_remove: 'Administrator',
     booster_list: null,
-    booster_clear: 'Administrator'
+    booster_clear: 'Administrator',
+    vc_disconnect: 'MoveMembers',
+    vc_move: 'MoveMembers',
+    pin_message: 'ManageMessages',
+    unpin_message: 'ManageMessages',
+    automod_add_badword: 'Administrator',
+    automod_toggle: 'Administrator',
+    fine_user: 'Administrator',
+    create_poll: 'ManageMessages',
+    set_reminder: null,
+    send_dm: 'Administrator',
+    set_welcome_channel: 'Administrator',
+    set_log_channel: 'Administrator',
+    change_prefix: 'Administrator',
+    close_ticket: 'ManageChannels',
+    add_user_to_ticket: 'ManageChannels',
+    announce: 'ManageMessages'
 };
 
 // ════════════════════════════════════════
@@ -270,22 +493,32 @@ async function executeTool(toolName, args, message, client) {
     }
 
     // ── Validate user_id ──
-    const needsUserId = ['mute_user', 'kick_user', 'ban_user', 'unmute_user', 'change_nickname', 'add_role', 'remove_role', 'warn_user', 'check_user_info'];
+    const needsUserId = ['mute_user', 'kick_user', 'ban_user', 'unmute_user', 'change_nickname', 'add_role', 'remove_role', 'warn_user', 'check_user_info', 'check_balance', 'fine_user'];
     if (needsUserId.includes(toolName)) {
         if (!args.user_id || !/^\d{17,20}$/.test(String(args.user_id))) {
             return `FAILED:INVALID_ID|The value "${args.user_id}" is not a valid Discord ID. You must mention a user so their ID appears in MENTIONED USERS.`;
         }
-        if (args.user_id === member.id) return 'FAILED:SELF|Cannot target yourself.';
+        if (args.user_id === member.id && !['check_user_info', 'check_balance'].includes(toolName)) return 'FAILED:SELF|Cannot target yourself.';
         if (args.user_id === botMember.id) return 'FAILED:BOT|Cannot target Lucifer.';
         
         // ── Owner & Hierarchy Protection ──
-        if (botOwnerId && args.user_id === botOwnerId) return 'FAILED:OWNER|You cannot target the Creator. Even the Devil has a master.';
-        if (args.user_id === guild.ownerId) return 'FAILED:GUILD_OWNER|That soul rules this realm. Even I must bow to the Server Owner.';
+        if (botOwnerId && args.user_id === botOwnerId && !['check_user_info', 'check_balance'].includes(toolName)) return 'FAILED:OWNER|You cannot target the Creator. Even the Devil has a master.';
+        if (args.user_id === guild.ownerId && !['check_user_info', 'check_balance'].includes(toolName)) return 'FAILED:GUILD_OWNER|That soul rules this realm. Even I must bow to the Server Owner.';
 
         const target = await guild.members.fetch(args.user_id).catch(() => null);
         if (!target) return `FAILED:NOT_FOUND|User <@${args.user_id}> not in server.`;
         if (!target.moderatable && ['mute_user', 'kick_user', 'ban_user', 'unmute_user', 'change_nickname', 'warn_user'].includes(toolName)) {
             return `FAILED:HIERARCHY|Cannot act on <@${args.user_id}>, they outrank Lucifer.`;
+        }
+    }
+
+    // ── Validate channel_id ──
+    if (['giveaway_start', 'vc_move', 'set_welcome_channel', 'set_log_channel', 'announce'].includes(toolName)) {
+        if (args.channel_id) {
+            const ch = guild.channels.cache.get(args.channel_id);
+            if (!ch) return `FAILED|Channel ID ${args.channel_id} not found.`;
+        } else if (['set_welcome_channel', 'set_log_channel', 'announce'].includes(toolName)) {
+            return 'FAILED|You must specify a channel by mentioning it (e.g., #general).';
         }
     }
 
@@ -353,6 +586,11 @@ async function executeTool(toolName, args, message, client) {
                 await message.channel.permissionOverwrites.edit(guild.id, { SendMessages: null });
                 return `OK|Unlocked **#${message.channel.name}**.`;
             }
+            case 'set_slowmode': {
+                const seconds = Math.min(Math.max(args.seconds || 0, 0), 21600);
+                await message.channel.setRateLimitPerUser(seconds, 'Set by Lucifer AI');
+                return `OK|Set slowmode in #${message.channel.name} to **${seconds}** seconds.`;
+            }
             case 'add_role': {
                 const target = await guild.members.fetch(args.user_id);
                 const role = guild.roles.cache.get(args.role_id);
@@ -371,6 +609,167 @@ async function executeTool(toolName, args, message, client) {
                 const roleMentions = target.roles.cache.filter(r => r.id !== guild.id).sort((a, b) => b.position - a.position).map(r => `<@&${r.id}>`).join(', ') || 'None';
                 return `INFO|**Name:** <@${args.user_id}>\n**Joined:** <t:${Math.floor(target.joinedTimestamp / 1000)}:R>\n**Warnings:** ${warnings}\n**Roles:** ${roleMentions}`;
             }
+            case 'check_balance': {
+                const eco = db.getUserEconomy(guild.id, args.user_id);
+                return `INFO|**<@${args.user_id}>'s Vault:**\n💳 **Wallet:** ${(eco.wallet||0).toLocaleString()} LC\n🏦 **Bank:** ${(eco.bank||0).toLocaleString()} LC\n💎 **Net Worth:** **${((eco.wallet||0) + (eco.bank||0)).toLocaleString()} LC**`;
+            }
+            case 'economy_leaderboard': {
+                const lb = db.getEconomyLeaderboard(guild.id, 5);
+                if (lb.length === 0) return 'LIST|The vaults are empty. No one has Lux Coins yet.';
+                const items = lb.map((entry, i) => {
+                    const medal = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'][i];
+                    return `${medal} <@${entry.userId}> — **${entry.netWorth.toLocaleString()} LC**`;
+                }).join('\n');
+                return `LIST|👑 **Richest Souls in Hell** 👑\n${items}`;
+            }
+            case 'server_info': {
+                const owner = await guild.fetchOwner().catch(() => null);
+                return `INFO|🏰 **${guild.name}**\n👥 **Members:** ${guild.memberCount}\n🚀 **Boosts:** ${guild.premiumSubscriptionCount || 0}\n👑 **Owner:** ${owner ? `<@${owner.id}>` : 'Unknown'}\n📅 **Created:** <t:${Math.floor(guild.createdTimestamp / 1000)}:R>`;
+            }
+            case 'vc_disconnect': {
+                const target = await guild.members.fetch(args.user_id);
+                if (!target.voice.channel) return 'FAILED|That soul is not in a voice channel.';
+                await target.voice.disconnect(args.reason || 'Disconnected by Lucifer AI');
+                return `OK|Dropped <@${args.user_id}> from the voice channel.`;
+            }
+            case 'vc_move': {
+                const target = await guild.members.fetch(args.user_id);
+                if (!target.voice.channel) return 'FAILED|That soul is not in a voice channel.';
+                const vc = guild.channels.cache.get(args.channel_id);
+                if (!vc || !vc.isVoiceBased()) return 'FAILED|Invalid voice channel ID provided.';
+                await target.voice.setChannel(vc, args.reason || 'Moved by Lucifer AI');
+                return `OK|Dragged <@${args.user_id}> into <#${args.channel_id}>.`;
+            }
+            case 'pin_message': {
+                if (message.reference && message.reference.messageId) {
+                    const refMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
+                    if (refMsg) { await refMsg.pin('Pinned by Lucifer AI'); return `OK|Pinned message from <@${refMsg.author.id}>.`; }
+                }
+                const lastMsgs = await message.channel.messages.fetch({ limit: 1, before: message.id });
+                const lastMsg = lastMsgs.first();
+                if (lastMsg) { await lastMsg.pin('Pinned by Lucifer AI'); return `OK|Pinned the last message.`; }
+                return 'FAILED|Could not find a message to pin.';
+            }
+            case 'unpin_message': {
+                const pinned = await message.channel.messages.fetchPinned();
+                if (pinned.size === 0) return 'FAILED|No pinned messages in this channel.';
+                const toUnpin = pinned.first(); // Unpins the most recently pinned message
+                await toUnpin.unpin('Unpinned by Lucifer AI');
+                return `OK|Unpinned a message.`;
+            }
+            case 'automod_add_badword': {
+                const automod = db.getAutomod(guild.id);
+                const word = args.word.toLowerCase();
+                if (automod.badwords.includes(word)) return 'FAILED|That word is already blocked.';
+                automod.badwords.push(word);
+                db.setAutomod(guild.id, automod);
+                return `OK|Added \`${word}\` to the automod blacklist.`;
+            }
+            case 'automod_toggle': {
+                const validFeatures = ['anti_link', 'anti_spam', 'anti_badwords', 'anti_massmention'];
+                const feature = args.feature?.toLowerCase();
+                if (!validFeatures.includes(feature)) return 'FAILED|Invalid feature. Valid: anti_link, anti_spam, anti_badwords, anti_massmention.';
+                const automod = db.getAutomod(guild.id);
+                automod[feature] = args.enabled;
+                if (args.enabled && !automod.enabled) automod.enabled = true; // Turn on master switch if enabling a feature
+                db.setAutomod(guild.id, automod);
+                return `OK|Set **${feature}** to **${args.enabled ? 'Enabled' : 'Disabled'}**.`;
+            }
+            case 'fine_user': {
+                const amount = Math.floor(Math.abs(args.amount));
+                if (!amount || amount <= 0) return 'FAILED|Invalid fine amount.';
+                const eco = db.getUserEconomy(guild.id, args.user_id);
+                eco.wallet = Math.max(0, eco.wallet - amount);
+                db.updateUserEconomy(guild.id, args.user_id, eco);
+                return `OK|Fined <@${args.user_id}> **${amount.toLocaleString()} LC**. Reason: ${args.reason || 'Not specified'}. Their new wallet balance is ${eco.wallet.toLocaleString()} LC.`;
+            }
+
+            case 'create_poll': {
+                const pollEmbed = createEmbed({
+                    title: `📊 Poll: ${args.question}`,
+                    color: THEME.celestial,
+                    footer: { text: `Poll started by ${member.displayName}` }
+                });
+                let optionsList = args.options ? args.options.split(',').map(o => o.trim()) : ['Yes', 'No'];
+                let desc = '';
+                const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+                
+                optionsList = optionsList.slice(0, 10);
+                optionsList.forEach((opt, i) => desc += `${numberEmojis[i]} ${opt}\n`);
+                pollEmbed.description = desc;
+
+                const pollMsg = await message.channel.send({ embeds: [pollEmbed] });
+                for (let i = 0; i < optionsList.length; i++) {
+                    await pollMsg.react(numberEmojis[i]).catch(() => {});
+                }
+                return `OK|Poll created in #${message.channel.name}.`;
+            }
+            case 'set_reminder': {
+                const duration = Math.max(1, args.duration_minutes);
+                const timestamp = Date.now() + (duration * 60 * 1000);
+                db.addReminder(member.id, message.channel.id, timestamp, args.reason);
+                const timeStr = duration >= 60 ? `${Math.floor(duration/60)}h${duration%60 ? duration%60+'m' : ''}` : `${duration}m`;
+                return `OK|I shall remind you about **${args.reason}** in **${timeStr}**.`;
+            }
+            case 'send_dm': {
+                const target = await guild.members.fetch(args.user_id).catch(() => null);
+                if (!target) return `FAILED|User <@${args.user_id}> not found.`;
+                try {
+                    await target.send({ embeds: [createEmbed({ description: args.message, color: THEME.primary, footer: { text: `Message from ${guild.name}` } })] });
+                    return `OK|DM sent to <@${args.user_id}>.`;
+                } catch (e) {
+                    return `FAILED|Could not DM <@${args.user_id}>. They likely have DMs disabled.`;
+                }
+            }
+            case 'set_welcome_channel': {
+                const currentWelcome = db.getWelcome(guild.id);
+                currentWelcome.channel_id = args.channel_id;
+                db.setWelcome(guild.id, currentWelcome);
+                return `OK|Welcome channel set to <#${args.channel_id}>.`;
+            }
+            case 'set_log_channel': {
+                db.setLogChannel(guild.id, args.channel_id);
+                return `OK|Mod log channel set to <#${args.channel_id}>.`;
+            }
+            case 'change_prefix': {
+                const newPrefix = args.prefix.trim();
+                if (!newPrefix || newPrefix.length > 5) return 'FAILED|Prefix must be between 1 and 5 characters.';
+                db.setPrefix(guild.id, newPrefix);
+                return `OK|Bot prefix changed to \`${newPrefix}\`.`;
+            }
+            case 'close_ticket': {
+                const ticketData = db.getTickets(guild.id);
+                const isTicket = Object.values(ticketData.active).includes(message.channel.id);
+                if (!isTicket && !message.channel.name.includes('ticket')) return 'FAILED|This channel is not a ticket.';
+                
+                await message.channel.send({ embeds: [createEmbed({ description: `🔒 This ticket is being closed by <@${member.id}>. Deleting in 5 seconds...`, color: THEME.accent })] });
+                setTimeout(() => message.channel.delete().catch(() => {}), 5000);
+                
+                // Remove from DB if it's an active ticket
+                const entry = Object.entries(ticketData.active).find(([userId, chId]) => chId === message.channel.id);
+                if (entry) { delete ticketData.active[entry[0]]; db.setTickets(guild.id, ticketData); }
+                
+                return `OK|Closing ticket.`;
+            }
+            case 'add_user_to_ticket': {
+                const isTicketChannel = message.channel.name.includes('ticket') || Object.values(db.getTickets(guild.id).active).includes(message.channel.id);
+                if (!isTicketChannel) return 'FAILED|This command can only be used in a ticket channel.';
+                
+                await message.channel.permissionOverwrites.edit(args.user_id, { ViewChannel: true, SendMessages: true });
+                return `OK|Added <@${args.user_id}> to this ticket.`;
+            }
+            case 'announce': {
+                const ch = guild.channels.cache.get(args.channel_id);
+                if (!ch || !ch.isTextBased()) return 'FAILED|Channel not found or not a text channel.';
+                
+                await ch.send({ embeds: [createEmbed({
+                    title: '📢 Announcement',
+                    description: args.message,
+                    color: THEME.celestial,
+                    footer: { text: `Announced by ${member.displayName}` }
+                })] });
+                return `OK|Announcement posted in <#${args.channel_id}>.`;
+            }
 
             // ── GIVEAWAY ──
             case 'giveaway_start': {
@@ -379,10 +778,20 @@ async function executeTool(toolName, args, message, client) {
                 const durationMs = (args.duration_minutes || 60) * 60 * 1000;
                 const winnerCount = args.winners || 1;
                 const prize = args.prize || 'Unknown Prize';
-                const fakeContext = { author: message.author, user: message.author, channel: message.channel, guild: message.guild, member: message.member, reply: async () => {} };
-                await giveawayCmd.startGiveaway(client, guild, message.channel, durationMs, winnerCount, prize, fakeContext);
+                
+                // Target Channel Check
+                let targetChannel = message.channel;
+                if (args.channel_id) {
+                    const fetchedChannel = guild.channels.cache.get(args.channel_id);
+                    if (fetchedChannel && fetchedChannel.isTextBased()) {
+                        targetChannel = fetchedChannel;
+                    }
+                }
+                
+                const fakeContext = { author: message.author, user: message.author, channel: targetChannel, guild: message.guild, member: message.member, reply: async () => {} };
+                await giveawayCmd.startGiveaway(client, guild, targetChannel, durationMs, winnerCount, prize, fakeContext);
                 const durStr = args.duration_minutes >= 60 ? `${Math.floor(args.duration_minutes/60)}h` : `${args.duration_minutes}m`;
-                return `OK|Started giveaway for **${prize}** with ${winnerCount} winner(s) in #${message.channel.name}. Ends in ${durStr}.`;
+                return `OK|Started giveaway for **${prize}** with ${winnerCount} winner(s) in #${targetChannel.name}. Ends in ${durStr}.`;
             }
             case 'giveaway_list': {
                 const giveaways = db.getActiveGiveaways().filter(g => g.guildId === guild.id);
@@ -454,15 +863,16 @@ async function executeTool(toolName, args, message, client) {
 // ════════════════════════════════════════
 
 function buildCapabilities(permissions) {
-    const caps = ['• Chat & answer questions', '• Check user info', '• View booster roles'];
+    const caps = ['• Chat & answer questions', '• Check user info', '• View booster roles', '• Check balances', '• View economy leaderboard', '• View server info', '• Set personal reminders'];
     if (permissions.has('ModerateMembers')) caps.push('• Mute/unmute users', '• Warn users');
     if (permissions.has('KickMembers')) caps.push('• Kick users');
     if (permissions.has('BanMembers')) caps.push('• Ban users');
-    if (permissions.has('ManageMessages')) caps.push('• Clear messages', '• Start/cancel/list giveaways');
+    if (permissions.has('ManageMessages')) caps.push('• Clear messages', '• Pin/unpin messages', '• Start/cancel/list giveaways', '• Create polls', '• Make announcements');
     if (permissions.has('ManageNicknames')) caps.push('• Change nicknames');
-    if (permissions.has('ManageChannels')) caps.push('• Lock/unlock channels');
+    if (permissions.has('ManageChannels')) caps.push('• Lock/unlock channels', '• Set slowmode', '• Close/add users to tickets');
     if (permissions.has('ManageRoles')) caps.push('• Add/remove roles');
-    if (permissions.has('Administrator')) caps.push('• Manage booster roles');
+    if (permissions.has('MoveMembers')) caps.push('• Move/disconnect users in VCs');
+    if (permissions.has('Administrator')) caps.push('• Manage booster roles', '• Manage automod rules', '• Fine users (deduct Lux Coins)', '• Send DMs on behalf of admins', '• Configure Welcome/Log channels', '• Change bot prefix');
     return caps.join('\n');
 }
 
@@ -495,10 +905,12 @@ ABSOLUTE RULES - VIOLATION CAUSES CRASHES:
 1. You can ONLY call functions from the tools list. No other functions exist.
 2. user_id MUST be a 17-20 digit number from MENTIONED USERS section. NEVER use names, words, or "you" as user_id.
 3. role_id MUST be a 17-20 digit number from ROLES section.
-4. If no user is mentioned, tell them to mention someone. Do NOT call tools without a valid ID.
-5. If you lack capability for something, say so honestly in character. Do NOT call the tool anyway.
-6. When asked what you can do, list YOUR capabilities naturally.
-7. CRITICAL HIERARCHY: You CANNOT take moderation actions against the Bot Owner (${ownerMention}) or the Server Owner (<@${guild.ownerId}>). If asked to mute, kick, ban, warn, or change their nickname, you MUST refuse in character (e.g., "Even I answer to a higher power, mortal.").
+4. channel_id MUST be a 17-20 digit number from CHANNEL MENTIONS section if provided. Otherwise omit it.
+5. If no user is mentioned, tell them to mention someone. Do NOT call tools without a valid ID.
+6. If you lack capability for something, say so honestly in character. Do NOT call the tool anyway.
+7. When asked what you can do, list YOUR capabilities naturally.
+8. CRITICAL HIERARCHY: You CANNOT take moderation actions against the Bot Owner (${ownerMention}) or the Server Owner (<@${guild.ownerId}>). If asked to mute, kick, ban, warn, or change their nickname, you MUST refuse in character (e.g., "Even I answer to a higher power, mortal.").
+9. For send_dm and announce: If the user provides exact text in quotes (""), pass that exact text. If they describe what they want to say without quotes (e.g., "tell him he's approved"), YOU must generate the message content yourself in character and pass it to the 'message' parameter.
 
 TOOL RESULT FORMAT:
 Results come as: STATUS|DATA
@@ -510,18 +922,18 @@ Results come as: STATUS|DATA
 - FAILED:OWNER| = targeting bot owner. Say: "Even the Devil answers to a higher power. I cannot touch the Creator."
 - FAILED:GUILD_OWNER| = targeting server owner. Say: "That soul rules this realm, even I must bow."
 - LIST| = data to display. Format it nicely.
-- INFO| = user info. Format with bold labels.
+- INFO| = user/economy/server info. Format with bold labels and emojis.
 
 RESPONSE STYLE:
 - Use **bold** for emphasis, *italics* for drama.
-- 1-3 emojis max. Use 🔥👑⚔️🦅🌌🍷📜👁️
+- 1-3 emojis max. Use 🔥👑⚔️🦅🌌🍷📜👁️💳🏦💎
 - 1-3 sentences for actions, 2-4 for chat.
-- For lists/booster/giveaway info, format nicely with line breaks.
+- For lists/leaderboards/info, format nicely with line breaks.
 - CRITICAL: When referring to a user, ALWAYS use their Ping value exactly (e.g., <@123456789>) so they get a real Discord ping. NEVER just type their display name. Example: "I've muted <@123456789>" NOT "I've muted John".
 - When referring to a role, use its Ping value (e.g., <@&987654321>) so it creates a clickable role mention.
 - NEVER show raw numeric IDs, tool names, or JSON to the user. The <@ID> and <@&ID> formats are exceptions — they render as clickable pings, not raw numbers.
 
-GIVEAWAY: duration is in MINUTES. 1h=60, 1d=1440, 30min=30.
+GIVEAWAY: duration is in MINUTES. 1h=60, 1d=1440, 30min=30. If a user mentions a specific channel, use the channel_id parameter.
 
 SERVER: ${guild.name} (${guild.memberCount} members)
 CHANNEL: #${channel.name}
@@ -561,6 +973,10 @@ async function handleLuciferAI(message, client, isFollowUp) {
     userMessage = userMessage.replace(/<@&(\d+)>/g, (match, roleId) => {
         const role = guild.roles.cache.get(roleId);
         return role ? `@${role.name} (RoleID: ${roleId})` : `@UnknownRole (RoleID: ${roleId})`;
+    });
+    userMessage = userMessage.replace(/<#(\d+)>/g, (match, channelId) => {
+        const ch = guild.channels.cache.get(channelId);
+        return ch ? `#${ch.name} (ChannelID: ${channelId})` : `#deleted-channel (ChannelID: ${channelId})`;
     });
 
     const thread = getThread(channel.id, message.author.id);

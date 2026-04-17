@@ -276,6 +276,19 @@ function updateUserEconomy(guildId, userId, data) {
     saveDB(db);
 }
 
+function getEconomyLeaderboard(guildId, limit = 5) {
+    const db = loadDB();
+    const guildEco = Object.entries(db.economy)
+        .filter(([key]) => key.startsWith(`${guildId}-`))
+        .map(([key, val]) => ({
+            userId: key.split('-')[1],
+            netWorth: (val.wallet || 0) + (val.bank || 0)
+        }))
+        .sort((a, b) => b.netWorth - a.netWorth)
+        .slice(0, limit);
+    return guildEco;
+}
+
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
     addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
@@ -300,5 +313,5 @@ module.exports = {
     getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles,
     getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus,
     getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole,
-    getUserEconomy, updateUserEconomy
+    getUserEconomy, updateUserEconomy, getEconomyLeaderboard
 };
