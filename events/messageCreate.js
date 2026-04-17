@@ -1,3 +1,5 @@
+const { AttachmentBuilder } = require('discord.js');
+const axios = require('axios');
 const { getPrefix, getAutomod, addWarning, getAutoTranslateLang, isAfk, removeAfk, getAutoDelete, getCounting, updateCounting, getSticky, setSticky, getAutoResponders, isAiMentionEnabled, getAiUsage, incrementAiUsage, AI_DAILY_LIMIT } = require('../database/db');
 const { hasPermission } = require('../utils/permissions');
 const { createEmbed, THEME } = require('../utils/embeds');
@@ -20,7 +22,76 @@ module.exports = {
                 if (ar.match_type === 'exact') matched = lowerContent === ar.trigger;
                 else if (ar.match_type === 'startswith') matched = lowerContent.startsWith(ar.trigger);
                 else matched = lowerContent.includes(ar.trigger);
-                if (matched) { await message.reply(ar.response).catch(() => {}); break; }
+                
+                if (matched) {
+                    // 1. React with Emoji if set
+                    if (ar.emoji) {
+                        await message.react(ar.emoji).catch(() => {});
+                    }
+                    
+                    // 2. Send Reply if Text or Image is set
+                    if (ar.response || ar.image_url) {
+                        const payload = {};
+                        if (ar.response) payload.content = ar.response;
+                        
+                        // Download image and send as attachment to hide the URL completely
+                        if (ar.image_url) {
+                            try {
+                                let finalUrl = ar.image_url;
+                                
+                                // Force Tenor MP4s to become GIFs
+                                if (finalUrl.includes('media.tenor.com') && finalUrl.endsWith('.mp4')) {
+                                    finalUrl = finalUrl.replace('.mp4', '.gif');
+                                }
+                                
+                                let imgRes = await axios.get(finalUrl, { responseType: 'arraybuffer', timeout: 5000 });
+                                let contentType = imgRes.headers['content-type'] || '';
+                                
+                                // ── ON-THE-FLY RESOLVER ──
+                                // If the saved URL is a shortlink that returned HTML, resolve it on the fly
+                                if (contentType.includes('text/html')) {
+                                    let resolvedUrl = finalUrl;
+                                    
+                                    // Use the Tenor redirect trick
+                                    if (resolvedUrl.includes('tenor.com')) {
+                                        if (!resolvedUrl.endsWith('.gif')) resolvedUrl += '.gif';
+                                        try {
+                                            const redirRes = await axios.get(resolvedUrl, { maxRedirects: 5, headers: {'User-Agent': 'Mozilla/5.0'}, timeout: 5000 });
+                                            resolvedUrl = redirRes.request.res?.responseUrl || resolvedUrl;
+                                        } catch(e) {}
+                                    }
+                                    
+                                    // If we successfully got the CDN link, download it
+                                    if (resolvedUrl.includes('media.tenor.com')) {
+                                        finalUrl = resolvedUrl.replace('.mp4', '.gif');
+                                        imgRes = await axios.get(finalUrl, { responseType: 'arraybuffer', timeout: 5000 });
+                                        contentType = imgRes.headers['content-type'] || '';
+                                    }
+                                }
+
+                                if (contentType.includes('text/html') || contentType.includes('application/json')) {
+                                    console.error('AR Safety: Downloaded content is HTML/JSON, not an image. Falling back to URL.');
+                                    payload.content += (payload.content ? '\n' : '') + ar.image_url;
+                                } else {
+                                    // Determine file extension
+                                    let ext = finalUrl.match(/\.(gif|png|jpg|jpeg|webp|mp4)/i)?.[0]?.substring(1);
+                                    if (!ext) {
+                                        ext = 'gif'; // Force GIF extension if unknown
+                                    }
+                                    const attachment = new AttachmentBuilder(Buffer.from(imgRes.data), { name: `response.${ext}` });
+                                    payload.files = [attachment];
+                                }
+                            } catch (e) {
+                                console.error('AR Image Download Error:', e.message);
+                                // Fallback to raw URL if download fails
+                                payload.content += (payload.content ? '\n' : '') + ar.image_url;
+                            }
+                        }
+                        
+                        await message.reply(payload).catch(() => {});
+                    }
+                    break; 
+                }
             }
         }
 
@@ -93,7 +164,6 @@ module.exports = {
             try {
                 const referencedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
                 if (referencedMsg && referencedMsg.author.id === client.user.id) {
-                    // Inline require — only loads AI module when actually needed
                     const { getThread } = require('../utils/luciferAI');
                     const thread = getThread(message.channel.id, message.author.id);
                     if (thread) isReplyToBot = true;

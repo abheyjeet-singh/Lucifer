@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const dbPath = path.join(__dirname, 'lucifer.json');
-const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [], giveaways: [], sticky_user_roles: {} };
+const defaultData = { guilds: {}, warnings: [], tempbans: [], forced_names: [], dynamic_vcs: [], reaction_roles: [], giveaways: [], sticky_user_roles: {}, economy: {} };
 
 function loadDB() {
     try {
@@ -21,6 +21,7 @@ function loadDB() {
         if (!data.counting) data.counting = {};
         if (!data.reminders) data.reminders = [];
         if (!data.giveaways) data.giveaways = [];
+        if (!data.economy) data.economy = {};
         return data;
     } catch (e) { console.error('DB Load Error:', e); return JSON.parse(JSON.stringify(defaultData)); }
 }
@@ -198,11 +199,18 @@ function removeStickyUserRoles(guildId, userId) { const db = loadDB(); if (!db.s
 function removeStickyRolesConfig(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].sticky_roles_enabled = false; db.guilds[guildId].sticky_roles_ignore = []; delete db.sticky_user_roles[guildId]; saveDB(db); }
 
 function getAutoResponders(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].auto_responders || []; }
-function addAutoResponder(guildId, trigger, response, matchType) {
+function addAutoResponder(guildId, trigger, response, matchType, imageUrl = null, emoji = null) {
     const db = loadDB(); ensureGuild(db, guildId);
     if (!db.guilds[guildId].auto_responders) db.guilds[guildId].auto_responders = [];
     const id = Date.now();
-    db.guilds[guildId].auto_responders.push({ id, trigger: trigger.toLowerCase(), response, match_type: matchType });
+    db.guilds[guildId].auto_responders.push({ 
+        id, 
+        trigger: trigger.toLowerCase(), 
+        response, 
+        match_type: matchType,
+        image_url: imageUrl,
+        emoji: emoji
+    });
     saveDB(db); return id;
 }
 function removeAutoResponder(guildId, id) {
@@ -246,10 +254,27 @@ function removeBoostPerksChannel(guildId) { const db = loadDB(); ensureGuild(db,
 function getBoostDmStatus(guildId, userId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].boost_dm_status[userId] || null; }
 function setBoostDmStatus(guildId, userId, status) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].boost_dm_status[userId] = status; saveDB(db); }
 
-// ── GIVEAWAY PING ROLE ──
 function getGiveawayPingRole(guildId) { const db = loadDB(); ensureGuild(db, guildId); return db.guilds[guildId].giveaway_ping_role_id; }
 function setGiveawayPingRole(guildId, roleId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].giveaway_ping_role_id = roleId; saveDB(db); }
 function removeGiveawayPingRole(guildId) { const db = loadDB(); ensureGuild(db, guildId); db.guilds[guildId].giveaway_ping_role_id = null; saveDB(db); }
+
+// ── LUX COINS ECONOMY ──
+function getUserEconomy(guildId, userId) {
+    const db = loadDB();
+    const key = `${guildId}-${userId}`;
+    if (!db.economy[key]) {
+        db.economy[key] = { wallet: 0, bank: 0, last_daily: 0, last_work: 0, last_rob: 0, last_crime: 0 };
+        saveDB(db);
+    }
+    return db.economy[key];
+}
+
+function updateUserEconomy(guildId, userId, data) {
+    const db = loadDB();
+    const key = `${guildId}-${userId}`;
+    db.economy[key] = data;
+    saveDB(db);
+}
 
 module.exports = {
     db: null, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
@@ -274,5 +299,6 @@ module.exports = {
     isAiMentionEnabled, setAiMentionEnabled,
     getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles,
     getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus,
-    getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole
+    getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole,
+    getUserEconomy, updateUserEconomy
 };

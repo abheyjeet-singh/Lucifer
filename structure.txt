@@ -1,0 +1,139 @@
+.
+├── assets
+│   └── lucifer-quotes.json
+├── commands
+│   ├── fun
+│   │   ├── ask.js
+│   │   ├── bite.js
+│   │   ├── blackjack.js
+│   │   ├── coinflip.js
+│   │   ├── dropkick.js
+│   │   ├── judge.js
+│   │   ├── kill.js
+│   │   ├── kiss.js
+│   │   ├── lucifer-quote.js
+│   │   ├── nask.js
+│   │   ├── punch.js
+│   │   ├── quote.js
+│   │   ├── roulette.js
+│   │   ├── rps.js
+│   │   ├── slap.js
+│   │   ├── slots.js
+│   │   └── tr.js
+│   ├── moderation
+│   │   ├── automod.js
+│   │   ├── ban.js
+│   │   ├── clear.js
+│   │   ├── clearwarn.js
+│   │   ├── disconnect.js
+│   │   ├── editsnipe.js
+│   │   ├── forcename.js
+│   │   ├── hardban.js
+│   │   ├── hardunban.js
+│   │   ├── infractions.js
+│   │   ├── kick.js
+│   │   ├── lock.js
+│   │   ├── lockvc.js
+│   │   ├── massban.js
+│   │   ├── move.js
+│   │   ├── mute.js
+│   │   ├── removeforcename.js
+│   │   ├── roleadd.js
+│   │   ├── roleremove.js
+│   │   ├── serverlock.js
+│   │   ├── serverunlock.js
+│   │   ├── setpreckchannel.js
+│   │   ├── slowmode.js
+│   │   ├── snipe.js
+│   │   ├── softban.js
+│   │   ├── stealemoji.js
+│   │   ├── tempban.js
+│   │   ├── timeout.js
+│   │   ├── unban.js
+│   │   ├── unlock.js
+│   │   ├── unlockvc.js
+│   │   ├── unmute.js
+│   │   ├── untimeout.js
+│   │   ├── vcdeafen.js
+│   │   ├── vcmute.js
+│   │   ├── vcundeafen.js
+│   │   ├── vcunmute.js
+│   │   ├── warnings.js
+│   │   └── warn.js
+│   └── utility
+│       ├── afk.js
+│       ├── aimode.js
+│       ├── aiusage.js
+│       ├── autoresponder.js
+│       ├── autotr.js
+│       ├── avatar.js
+│       ├── balance.js
+│       ├── boosterrole.js
+│       ├── createvc.js
+│       ├── crime.js
+│       ├── daily.js
+│       ├── deposit.js
+│       ├── giveaway.js
+│       ├── guide.js
+│       ├── help.js
+│       ├── logchannel.js
+│       ├── modactions.js
+│       ├── modstat.js
+│       ├── ping.js
+│       ├── poll.js
+│       ├── prefix.js
+│       ├── quota.js
+│       ├── reactionrole.js
+│       ├── remind.js
+│       ├── rob.js
+│       ├── send.js
+│       ├── serverinfo.js
+│       ├── setup.js
+│       ├── stickyrole.js
+│       ├── suggest.js
+│       ├── ticket.js
+│       ├── unset.js
+│       ├── userinfo.js
+│       ├── verify.js
+│       ├── welcome.js
+│       ├── withdraw.js
+│       └── work.js
+├── database
+│   ├── db.js
+│   ├── lucifer.db
+│   ├── lucifer.db-shm
+│   ├── lucifer.db-wal
+│   └── lucifer.json
+├── events
+│   ├── clientReady.js
+│   ├── guildBanRemove.js
+│   ├── guildMemberAdd.js
+│   ├── guildMemberRemove.js
+│   ├── guildMemberUpdate.js
+│   ├── interactionCreate.js
+│   ├── messageCreate.js
+│   ├── messageDelete.js
+│   ├── messageReactionAdd.js
+│   ├── messageReactionRemove.js
+│   ├── messageUpdate.js
+│   ├── userUpdate.js
+│   └── voiceStateUpdate.js
+├── handlers
+│   ├── commandHandler.js
+│   ├── eventHandler.js
+│   └── slashHandler.js
+├── index.js
+├── package.json
+├── package-lock.json
+├── Roboto-Bold.ttf
+├── Roboto-Medium.ttf
+├── Roboto-Regular.ttf
+├── structure.txt
+└── utils
+    ├── embeds.js
+    ├── logger.js
+    ├── luciferAI.js
+    ├── permissions.js
+    └── quoteGenerator.js
+
+10 directories, 127 files
