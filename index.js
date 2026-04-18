@@ -3,7 +3,7 @@ const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { loadCommands } = require('./handlers/commandHandler');
 const { loadEvents } = require('./handlers/eventHandler');
 const { registerSlashCommands } = require('./handlers/slashHandler');
-const { getExpiredTempbans, removeTempban, getExpiredReminders, removeReminder, loadCaches } = require('./database/db');
+const { getExpiredTempbans, removeTempban, getExpiredReminders, removeReminder } = require('./database/db');
 const logger = require('./utils/logger');
 
 const client = new Client({
@@ -18,8 +18,6 @@ client.snipes = new Map();
 
 const slashData = loadCommands(client);
 loadEvents(client);
-
-//loadCaches(); // Load AFK, Stickies, Auto-Delete into memory
 
 client.once('clientReady', () => {
     registerSlashCommands(slashData, process.env.CLIENT_ID, process.env.TOKEN);
@@ -50,6 +48,21 @@ client.once('clientReady', () => {
             removeReminder(rem.id);
         }
     }, 15 * 1000); // Check every 15 seconds for precise reminders
+
+    // ── ITEM EXPIRATION SWEEPER ──
+    // Runs every 5 minutes to remove expired shop items (like Rob Shields) from the database
+    setInterval(() => {
+        try {
+            const db = require('./database/db').db;
+            const now = Date.now();
+            const result = db.prepare('DELETE FROM inventory WHERE expires IS NOT NULL AND expires <= ?').run(now);
+            if (result.changes > 0) {
+                logger.info(`🔥 Sweeper: Removed ${result.changes} expired item(s).`);
+            }
+        } catch (err) {
+            logger.error('Sweeper Error:', err);
+        }
+    }, 5 * 60 * 1000); // 5 minutes
 });
 
 client.login(process.env.TOKEN)

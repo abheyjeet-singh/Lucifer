@@ -7,20 +7,9 @@ module.exports = {
     category: 'moderation',
     usage: 'lock [channel]',
     permissions: ['ManageChannels'],
-    data: new SlashCommandBuilder()
-        .setName('lock')
-        .setDescription('Seal a channel shut')
-        .addChannelOption(o => o.setName('channel').setDescription('Channel to seal'))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
-
     async execute(message, args, client) {
         const channel = message.mentions.channels.first() || message.channel;
         return this.run(client, message.guild, channel, message.member, message);
-    },
-
-    async interact(interaction, client) {
-        const channel = interaction.options.getChannel('channel') || interaction.channel;
-        return this.run(client, interaction.guild, channel, interaction.member, interaction);
     },
 
     async run(client, guild, channel, moderator, context) {

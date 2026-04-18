@@ -9,21 +9,11 @@ module.exports = {
     usage: 'removeforcename @user',
     aliases: ['rfn'],
     permissions: ['ManageNicknames'],
-    data: new SlashCommandBuilder()
-        .setName('removeforcename')
-        .setDescription('Free a soul from their forced name')
-        .addUserOption(o => o.setName('user').setDescription('The soul to free').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
 
     async execute(message, args, client) {
         const target = message.mentions.members.first();
         if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `rfn @user`', color: THEME.error })] });
         return this.run(client, message.guild, message.member, target, message);
-    },
-
-    async interact(interaction, client) {
-        const target = interaction.options.getMember('user');
-        return this.run(client, interaction.guild, interaction.member, target, interaction);
     },
 
     async run(client, guild, moderator, target, context) {

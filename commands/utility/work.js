@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { getUserEconomy, updateUserEconomy } = require('../../database/db');
+const { getUserEconomy, updateUserEconomy, hasItem } = require('../../database/db'); // Added hasItem
 
 const WORK_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const MIN_PAY = 200;
@@ -33,16 +33,26 @@ module.exports = {
             })] });
         }
 
-        const pay = Math.floor(Math.random() * (MAX_PAY - MIN_PAY + 1)) + MIN_PAY;
+        let pay = Math.floor(Math.random() * (MAX_PAY - MIN_PAY + 1)) + MIN_PAY;
         const job = JOBS[Math.floor(Math.random() * JOBS.length)];
+
+        // ── Check for Lucky Charm Buff ──
+        let charmActive = false;
+        if (hasItem(message.guild.id, message.author.id, 'lucky_charm')) {
+            pay *= 2; // Double the earnings!
+            charmActive = true;
+        }
 
         eco.wallet += pay;
         eco.last_work = now;
         updateUserEconomy(message.guild.id, message.author.id, eco);
 
+        let description = `⚒️ **You worked as a ${job}!**\n\n💸 **Earned:** ${pay.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`;
+        if (charmActive) description += `\n🍀 **Lucky Charm active! Earnings doubled!**`;
+
         return message.reply({ embeds: [createEmbed({ 
             title: '🔥 Infernal Labor',
-            description: `⚒️ **You worked as a ${job}!**\n\n💸 **Earned:** ${pay.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
+            description: description, 
             color: THEME.success
         })] });
     },
@@ -61,16 +71,26 @@ module.exports = {
             })], flags: 64 });
         }
 
-        const pay = Math.floor(Math.random() * (MAX_PAY - MIN_PAY + 1)) + MIN_PAY;
+        let pay = Math.floor(Math.random() * (MAX_PAY - MIN_PAY + 1)) + MIN_PAY;
         const job = JOBS[Math.floor(Math.random() * JOBS.length)];
+
+        // ── Check for Lucky Charm Buff ──
+        let charmActive = false;
+        if (hasItem(interaction.guild.id, interaction.user.id, 'lucky_charm')) {
+            pay *= 2; // Double the earnings!
+            charmActive = true;
+        }
 
         eco.wallet += pay;
         eco.last_work = now;
         updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
 
+        let description = `⚒️ **You worked as a ${job}!**\n\n💸 **Earned:** ${pay.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`;
+        if (charmActive) description += `\n🍀 **Lucky Charm active! Earnings doubled!**`;
+
         return interaction.reply({ embeds: [createEmbed({ 
             title: '🔥 Infernal Labor',
-            description: `⚒️ **You worked as a ${job}!**\n\n💸 **Earned:** ${pay.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
+            description: description, 
             color: THEME.success
         })] });
     }

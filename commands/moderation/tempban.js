@@ -1,4 +1,3 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, THEME, modLog } = require('../../utils/embeds');
 const { addTempban, isHardbanned } = require('../../database/db');
 
@@ -8,13 +7,6 @@ module.exports = {
     category: 'moderation',
     usage: 'tempban @user <duration> [reason]',
     permissions: ['BanMembers'],
-    data: new SlashCommandBuilder()
-        .setName('tempban')
-        .setDescription('Temporarily exile a soul from this realm')
-        .addUserOption(o => o.setName('user').setDescription('The soul to exile').setRequired(true))
-        .addStringOption(o => o.setName('duration').setDescription('Duration (e.g. 1h, 12h, 3d)').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason for exile'))
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     parseDuration(str) {
         const regex = /^(\d+)(s|m|h|d)$/;
@@ -33,16 +25,6 @@ module.exports = {
         if (!ms) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration. Use format: `1m`, `1h`, `1d`', color: THEME.error })] });
         const reason = args.slice(2).join(' ') || 'No reason provided';
         return this.run(client, message.guild, message.member, target, ms, durationStr, reason, message);
-    },
-
-    async interact(interaction, client) {
-        const target = interaction.options.getMember('user');
-        if (!target) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ That soul cannot be found.', color: THEME.error })], ephemeral: true });
-        const durationStr = interaction.options.getString('duration');
-        const ms = this.parseDuration(durationStr);
-        if (!ms) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration. Use: `1m`, `1h`, `1d`', color: THEME.error })], ephemeral: true });
-        const reason = interaction.options.getString('reason') || 'No reason provided';
-        return this.run(client, interaction.guild, interaction.member, target, ms, durationStr, reason, interaction);
     },
 
     async run(client, guild, moderator, target, ms, durationStr, reason, context) {

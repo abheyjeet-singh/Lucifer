@@ -1,6 +1,7 @@
-const { ChannelType, PermissionFlagsBits } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, AttachmentBuilder } = require('discord.js');
 const { getDynamicVcHub, addDynamicVc, removeDynamicVc, isDynamicVc, getGuildSettings } = require('../database/db');
 const { createEmbed, THEME, modLog } = require('../utils/embeds');
+const { buildModLogCard } = require('../utils/canvasBuilder');
 const logger = require('../utils/logger');
 
 module.exports = {
@@ -55,58 +56,52 @@ module.exports = {
         // ════════════════════════════════════════
         const settings = getGuildSettings(guild.id);
         if (!settings.log_channel_id) return;
+        const logChannel = guild.channels.cache.get(settings.log_channel_id);
+        if (!logChannel || member.user.bot) return;
 
-        // Ignore bot voice updates
-        if (member.user.bot) return;
-
+        // ── High Frequency: Keep as Text Embeds ──
         let logTitle = '';
         let logDesc = '';
         let logColor = THEME.dark;
 
-        // Joined a VC
         if (!oldState.channelId && newState.channelId) {
-            logTitle = '🎙️ Joined Voice Channel';
-            logDesc = `**User:** ${member.user} (${member.id})\n**Channel:** ${newState.channel}`;
-            logColor = THEME.success;
-        }
-        // Left a VC
-        else if (oldState.channelId && !newState.channelId) {
-            logTitle = '🔇 Left Voice Channel';
-            logDesc = `**User:** ${member.user} (${member.id})\n**Channel:** ${oldState.channel}`;
-            logColor = THEME.error;
-        }
-        // Moved VCs
-        else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
-            logTitle = '🚚 Moved Voice Channel';
-            logDesc = `**User:** ${member.user} (${member.id})\n**From:** ${oldState.channel}\n**To:** ${newState.channel}`;
-            logColor = THEME.celestial;
-        }
-        // Server Mute/Deafen/Unmute/Undeafen (Only log server actions, not self-mutes)
-        else if (oldState.channelId && newState.channelId && oldState.channelId === newState.channelId) {
-            if (oldState.serverMute !== newState.serverMute) {
-                logTitle = newState.serverMute ? '🔇 Server Muted' : '🔊 Server Unmuted';
-                logDesc = `**User:** ${member.user} (${member.id})\n**Channel:** ${newState.channel}`;
-                logColor = newState.serverMute ? THEME.accent : THEME.success;
-            }
-            else if (oldState.serverDeaf !== newState.serverDeaf) {
-                logTitle = newState.serverDeaf ? '🔕 Server Deafened' : '🔔 Server Undeafened';
-                logDesc = `**User:** ${member.user} (${member.id})\n**Channel:** ${newState.channel}`;
-                logColor = newState.serverDeaf ? THEME.accent : THEME.success;
-            }
-            // Optional: Video/Streaming start/stop
-            else if (oldState.streaming !== newState.streaming) {
-                logTitle = newState.streaming ? '📺 Started Streaming' : '📺 Stopped Streaming';
-                logDesc = `**User:** ${member.user} (${member.id})\n**Channel:** ${newState.channel}`;
-                logColor = newState.streaming ? THEME.primary : THEME.dark;
-            }
+            logTitle = '🎙️ Joined Voice'; logDesc = `**User:** ${member.user} | **Channel:** ${newState.channel}`; logColor = THEME.success;
+        } else if (oldState.channelId && !newState.channelId) {
+            logTitle = '🔇 Left Voice'; logDesc = `**User:** ${member.user} | **Channel:** ${oldState.channel}`; logColor = THEME.error;
+        } else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+            logTitle = '🚚 Moved Voice'; logDesc = `**User:** ${member.user}\n**From:** ${oldState.channel} | **To:** ${newState.channel}`; logColor = THEME.celestial;
         }
 
         if (logTitle) {
-            await modLog(client, guild, createEmbed({
-                title: logTitle,
-                description: logDesc,
-                color: logColor,
-            }));
+            await modLog(client, guild, createEmbed({ title: logTitle, description: logDesc, color: logColor }));
+        }
+
+        // ── Mod Actions: Premium Canvas Logs ──
+        if (oldState.channelId && newState.channelId && oldState.channelId === newState.channelId) {
+            if (oldState.serverMute !== newState.serverMute) {
+                try {
+                    const imageBuffer = await buildModLogCard(
+                        member.user.displayAvatarURL({ extension: 'png' }),
+                        newState.serverMute ? '#e74c3c' : '#2ecc71', // Red if muted, Green if unmuted
+                        newState.serverMute ? 'SERVER MUTED' : 'SERVER UNMUTED',
+                        [`User: ${member.user.tag} (${member.id})`, `Channel: ${newState.channel.name}`]
+                    );
+                    const attachment = new AttachmentBuilder(imageBuffer, { name: 'mute.png' });
+                    await logChannel.send({ files: [attachment] });
+                } catch (e) { console.error(e); }
+            }
+            else if (oldState.serverDeaf !== newState.serverDeaf) {
+                try {
+                    const imageBuffer = await buildModLogCard(
+                        member.user.displayAvatarURL({ extension: 'png' }),
+                        newState.serverDeaf ? '#e74c3c' : '#2ecc71',
+                        newState.serverDeaf ? 'SERVER DEAFENED' : 'SERVER UNDEAFENED',
+                        [`User: ${member.user.tag} (${member.id})`, `Channel: ${newState.channel.name}`]
+                    );
+                    const attachment = new AttachmentBuilder(imageBuffer, { name: 'deafen.png' });
+                    await logChannel.send({ files: [attachment] });
+                } catch (e) { console.error(e); }
+            }
         }
     },
 };

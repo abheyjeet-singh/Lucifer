@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { getUserEconomy, updateUserEconomy } = require('../../database/db');
+const { getUserEconomy, updateUserEconomy, hasItem } = require('../../database/db'); // Added hasItem
 
 const CRIME_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 const SUCCESS_CHANCE = 0.50; // 50% chance to win
@@ -42,13 +42,24 @@ module.exports = {
         eco.last_crime = now;
 
         if (success) {
-            const winnings = Math.floor(Math.random() * (MAX_WIN - MIN_WIN + 1)) + MIN_WIN;
+            let winnings = Math.floor(Math.random() * (MAX_WIN - MIN_WIN + 1)) + MIN_WIN;
+
+            // ── Check for Lucky Charm Buff ──
+            let charmActive = false;
+            if (hasItem(message.guild.id, message.author.id, 'lucky_charm')) {
+                winnings *= 2; // Double the loot!
+                charmActive = true;
+            }
+
             eco.wallet += winnings;
             updateUserEconomy(message.guild.id, message.author.id, eco);
 
+            let description = `🤫 **You ${crime}!**\n\n💰 **Loot:** ${winnings.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`;
+            if (charmActive) description += `\n🍀 **Lucky Charm active! Loot doubled!**`;
+
             return message.reply({ embeds: [createEmbed({ 
                 title: '🚨 Demonic Crime',
-                description: `🤫 **You ${crime}!**\n\n💰 **Loot:** ${winnings.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
+                description: description, 
                 color: THEME.success
             })] });
         } else {
@@ -83,13 +94,24 @@ module.exports = {
         eco.last_crime = now;
 
         if (success) {
-            const winnings = Math.floor(Math.random() * (MAX_WIN - MIN_WIN + 1)) + MIN_WIN;
+            let winnings = Math.floor(Math.random() * (MAX_WIN - MIN_WIN + 1)) + MIN_WIN;
+
+            // ── Check for Lucky Charm Buff ──
+            let charmActive = false;
+            if (hasItem(interaction.guild.id, interaction.user.id, 'lucky_charm')) {
+                winnings *= 2; // Double the loot!
+                charmActive = true;
+            }
+
             eco.wallet += winnings;
             updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
 
+            let description = `🤫 **You ${crime}!**\n\n💰 **Loot:** ${winnings.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`;
+            if (charmActive) description += `\n🍀 **Lucky Charm active! Loot doubled!**`;
+
             return interaction.reply({ embeds: [createEmbed({ 
                 title: '🚨 Demonic Crime',
-                description: `🤫 **You ${crime}!**\n\n💰 **Loot:** ${winnings.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
+                description: description, 
                 color: THEME.success
             })] });
         } else {

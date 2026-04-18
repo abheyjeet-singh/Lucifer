@@ -3,6 +3,7 @@
 │   └── lucifer-quotes.json
 ├── commands
 │   ├── fun
+│   │   ├── anime.js
 │   │   ├── bite.js
 │   │   ├── blackjack.js
 │   │   ├── coinflip.js
@@ -11,6 +12,7 @@
 │   │   ├── kill.js
 │   │   ├── kiss.js
 │   │   ├── lucifer-quote.js
+│   │   ├── meme.js
 │   │   ├── punch.js
 │   │   ├── quote.js
 │   │   ├── roulette.js
@@ -33,8 +35,10 @@
 │   │   ├── lock.js
 │   │   ├── lockvc.js
 │   │   ├── massban.js
+│   │   ├── modact.js
 │   │   ├── move.js
 │   │   ├── mute.js
+│   │   ├── panic.js
 │   │   ├── removeforcename.js
 │   │   ├── roleadd.js
 │   │   ├── roleremove.js
@@ -51,6 +55,7 @@
 │   │   ├── unlock.js
 │   │   ├── unlockvc.js
 │   │   ├── unmute.js
+│   │   ├── unpanic.js
 │   │   ├── untimeout.js
 │   │   ├── vcdeafen.js
 │   │   ├── vcmute.js
@@ -70,21 +75,25 @@
 │       ├── botinfo.js
 │       ├── broadcast.js
 │       ├── buttonrole.js
+│       ├── buy.js
 │       ├── createvc.js
 │       ├── crime.js
 │       ├── daily.js
+│       ├── define.js
 │       ├── deposit.js
 │       ├── giveaway.js
 │       ├── givecoins.js
 │       ├── guide.js
 │       ├── help.js
 │       ├── logchannel.js
+│       ├── marriageinfo.js
 │       ├── marriage.js
 │       ├── modactions.js
 │       ├── modstat.js
 │       ├── ping.js
 │       ├── poll.js
 │       ├── prefix.js
+│       ├── profile.js
 │       ├── quota.js
 │       ├── reactionrole.js
 │       ├── remind.js
@@ -93,6 +102,7 @@
 │       ├── serverinfo.js
 │       ├── servers.js
 │       ├── setup.js
+│       ├── shop.js
 │       ├── stickyrole.js
 │       ├── suggest.js
 │       ├── ticket.js
@@ -100,6 +110,7 @@
 │       ├── unset.js
 │       ├── userinfo.js
 │       ├── verify.js
+│       ├── weather.js
 │       ├── welcome.js
 │       ├── withdraw.js
 │       └── work.js
@@ -146,10 +157,11 @@
 ├── Roboto-Regular.ttf
 ├── structure.txt
 └── utils
+    ├── canvasBuilder.js
     ├── embeds.js
     ├── logger.js
     ├── luciferAI.js
     ├── permissions.js
     └── quoteGenerator.js
 
-10 directories, 143 files
+10 directories, 155 files

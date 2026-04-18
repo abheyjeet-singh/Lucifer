@@ -1,31 +1,39 @@
-const { createEmbed, THEME, modLog } = require('../utils/embeds');
+const { AuditLogEvent, AttachmentBuilder } = require('discord.js');
+const { createEmbed, THEME } = require('../utils/embeds');
+const { getGuildSettings } = require('../database/db');
+const { buildModLogCard } = require('../utils/canvasBuilder');
 
 module.exports = {
     once: false,
     async execute(ban, client) {
-        // Fetch the ban to get the reason
+        const { guild, user } = ban;
+        const settings = getGuildSettings(guild.id);
+        if (!settings.log_channel_id) return;
+        const logChannel = guild.channels.cache.get(settings.log_channel_id);
+        if (!logChannel) return;
+
+        let moderatorTag = 'Unknown';
         let reason = 'No reason provided';
         try {
-            const fullBan = await ban.guild.bans.fetch(ban.user.id);
-            reason = fullBan.reason || 'No reason provided';
-        } catch {}
-
-        // Fetch Audit Log to find out WHO banned them
-        let moderator = 'Unknown (Possibly Discord System)';
-        try {
-            const auditLogs = await ban.guild.fetchAuditLogs({ type: 22, limit: 1 }); // Type 22 = MEMBER_BAN_ADD
-            const log = auditLogs.entries.first();
-            if (log && log.target.id === ban.user.id && Date.now() - log.createdTimestamp < 10000) {
-                moderator = `${log.executor} (${log.executor.id})`;
+            const auditLogs = await guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd });
+            const banLog = auditLogs.entries.first();
+            if (banLog && banLog.target.id === user.id) {
+                moderatorTag = banLog.executor.tag;
+                reason = banLog.reason || 'No reason provided';
             }
         } catch {}
 
-        await modLog(client, ban.guild, createEmbed({
-            title: '🔨 Soul Banished',
-            description: `**User:** ${ban.user} (${ban.user.id})\n**Moderator:** ${moderator}\n**Reason:** ${reason}`,
-            color: THEME.error,
-            thumbnail: ban.user.displayAvatarURL({ size: 256 }),
-            footer: { text: ban.user.tag }
-        }));
+        try {
+            const imageBuffer = await buildModLogCard(
+                user.displayAvatarURL({ extension: 'png' }), 
+                '#e74c3c', // Red accent
+                'MEMBER BANNED', 
+                [`User: ${user.tag} (${user.id})`, `Moderator: ${moderatorTag}`, `Reason: ${reason}`]
+            );
+            const attachment = new AttachmentBuilder(imageBuffer, { name: 'ban.png' });
+            await logChannel.send({ files: [attachment] });
+        } catch (e) {
+            console.error(e);
+        }
     },
 };

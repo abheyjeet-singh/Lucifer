@@ -7,24 +7,12 @@ module.exports = {
     category: 'moderation',
     usage: 'roleremove @user @role',
     permissions: ['ManageRoles'],
-    data: new SlashCommandBuilder()
-        .setName('roleremove')
-        .setDescription('Strip a role from a soul')
-        .addUserOption(o => o.setName('user').setDescription('The soul').setRequired(true))
-        .addRoleOption(o => o.setName('role').setDescription('The role to strip').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
-
+    
     async execute(message, args, client) {
         const target = message.mentions.members.first();
         const role = message.mentions.roles.first();
         if (!target || !role) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `roleremove @user @role`', color: THEME.error })] });
         return this.run(client, message.guild, message.member, target, role, message);
-    },
-
-    async interact(interaction, client) {
-        const target = interaction.options.getMember('user');
-        const role = interaction.options.getRole('role');
-        return this.run(client, interaction.guild, interaction.member, target, role, interaction);
     },
 
     async run(client, guild, moderator, target, role, context) {

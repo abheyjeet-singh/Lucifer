@@ -19,6 +19,12 @@ db.exec(`
         mute_role_id TEXT,
         data TEXT DEFAULT '{}'
     );
+    CREATE TABLE IF NOT EXISTS inventory (
+        key TEXT,
+        item_id TEXT,
+        expires INTEGER,
+        PRIMARY KEY (key, item_id)
+    );
     CREATE TABLE IF NOT EXISTS timezones (
         user_id TEXT PRIMARY KEY,
         timezone TEXT NOT NULL
@@ -388,6 +394,31 @@ function setTimezone(userId, tz) {
     db.prepare('INSERT OR REPLACE INTO timezones (user_id, timezone) VALUES (?, ?)').run(userId, tz);
 }
 
+// ── SHOP / INVENTORY ──
+function hasItem(guildId, userId, itemId) {
+    const key = `${guildId}-${userId}`;
+    const row = db.prepare('SELECT * FROM inventory WHERE key = ? AND item_id = ?').get(key, itemId);
+    if (!row) return false;
+    if (row.expires && row.expires < Date.now()) {
+        db.prepare('DELETE FROM inventory WHERE key = ? AND item_id = ?').run(key, itemId);
+        return false;
+    }
+    return true;
+}
+function addItem(guildId, userId, itemId, durationMs = null) {
+    const key = `${guildId}-${userId}`;
+    const expires = durationMs ? Date.now() + durationMs : null;
+    db.prepare('INSERT OR REPLACE INTO inventory (key, item_id, expires) VALUES (?, ?, ?)').run(key, itemId, expires);
+}
+function removeItem(guildId, userId, itemId) {
+    const key = `${guildId}-${userId}`;
+    db.prepare('DELETE FROM inventory WHERE key = ? AND item_id = ?').run(key, itemId);
+}
+function getInventory(guildId, userId) {
+    const key = `${guildId}-${userId}`;
+    return db.prepare('SELECT * FROM inventory WHERE key = ?').all(key);
+}
+
 module.exports = {
     db, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
     setMuteRole, removeMuteRole, setStarboard, getStarboard, removeStarboard,
@@ -401,7 +432,7 @@ module.exports = {
     getAutomod, setAutomod, getWelcome, setWelcome, removeWelcome, getVerify, setVerify, removeVerify,
     getTickets, setTickets, addActiveTicket, removeActiveTicket, getActiveTicket,
     addAutoResponder, removeAutoResponder, getAutoResponders, clearAutoResponders,
-    addReactionRole: () => {}, removeReactionRole: () => {}, getReactionRoles: () => [], // Legacy stubs
+    addReactionRole: () => {}, removeReactionRole: () => {}, getReactionRoles: () => [], 
     addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
     addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded, getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole,
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
@@ -412,5 +443,7 @@ module.exports = {
     isAiMentionEnabled, setAiMentionEnabled,
     getUserEconomy, updateUserEconomy, getEconomyLeaderboard,
     addButtonRole, removeButtonRole, getButtonRoles, getMarriage, marryUsers, divorceUsers,
-    getTimezone, setTimezone
+    getTimezone, setTimezone,
+    // ── SHOP EXPORTS (Kept so Rob Shield works) ──
+    hasItem, addItem, removeItem, getInventory
 };

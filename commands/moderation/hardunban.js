@@ -8,24 +8,12 @@ module.exports = {
     category: 'moderation',
     usage: 'hardunban <userid> [reason]',
     permissions: ['Administrator'],
-    data: new SlashCommandBuilder()
-        .setName('hardunban')
-        .setDescription('Grant clemency to an eternally damned soul (Admin only)')
-        .addStringOption(o => o.setName('user_id').setDescription('The ID of the damned soul').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('Reason for clemency'))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(message, args, client) {
         const userId = args[0];
         if (!userId) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a user ID to grant clemency.', color: THEME.error })] });
         const reason = args.slice(1).join(' ') || 'Clemency granted';
         return this.run(client, message.guild, message.member, userId, reason, message);
-    },
-
-    async interact(interaction, client) {
-        const userId = interaction.options.getString('user_id');
-        const reason = interaction.options.getString('reason') || 'Clemency granted';
-        return this.run(client, interaction.guild, interaction.member, userId, reason, interaction);
     },
 
     async run(client, guild, moderator, userId, reason, context) {

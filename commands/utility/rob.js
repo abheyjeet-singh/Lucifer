@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { getUserEconomy, updateUserEconomy } = require('../../database/db');
+const { getUserEconomy, updateUserEconomy, hasItem, removeItem } = require('../../database/db');
 
 const ROB_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
 const SUCCESS_CHANCE = 0.40; // 40% chance to win
@@ -19,6 +19,7 @@ module.exports = {
         const target = message.mentions.users.first();
         if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ You must mention someone to rob! Usage: `l!rob @user`', color: THEME.error })] });
         if (target.id === message.author.id) return message.reply({ embeds: [createEmbed({ description: '⚠️ You can\'t rob yourself!', color: THEME.error })] });
+        if (target.bot) return message.reply({ embeds: [createEmbed({ description: '⚠️ You can\'t rob bots!', color: THEME.error })] });
 
         const eco = getUserEconomy(message.guild.id, message.author.id);
         const targetEco = getUserEconomy(message.guild.id, target.id);
@@ -42,11 +43,22 @@ module.exports = {
             })] });
         }
 
+        // Check for Rob Shield
+        if (hasItem(message.guild.id, target.id, 'rob_shield')) {
+            removeItem(message.guild.id, target.id, 'rob_shield');
+            eco.last_rob = now;
+            updateUserEconomy(message.guild.id, message.author.id, eco);
+            return message.reply({ embeds: [createEmbed({ 
+                title: '🔪 Mugging',
+                description: `🛡️ **${target.username}** had a Rob Shield! Your robbery was blocked, and you fled into the shadows.`, 
+                color: THEME.accent
+            })] });
+        }
+
         const success = Math.random() <= SUCCESS_CHANCE;
         eco.last_rob = now;
 
         if (success) {
-            // Steal between 10% and 25% of target's wallet
             const percentage = Math.random() * 0.15 + 0.10; 
             const stolenAmount = Math.floor(targetEco.wallet * percentage);
             
@@ -98,6 +110,18 @@ module.exports = {
                 description: `🚫 **${target.username}** doesn't have enough LC in their wallet to make it worth your time! (They need at least ${MIN_TARGET_WALLET.toLocaleString()} LC)`, 
                 color: THEME.accent
             })], flags: 64 });
+        }
+
+        // Check for Rob Shield
+        if (hasItem(interaction.guild.id, target.id, 'rob_shield')) {
+            removeItem(interaction.guild.id, target.id, 'rob_shield');
+            eco.last_rob = now;
+            updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
+            return interaction.reply({ embeds: [createEmbed({ 
+                title: '🔪 Mugging',
+                description: `🛡️ **${target.username}** had a Rob Shield! Your robbery was blocked.`, 
+                color: THEME.accent
+            })] });
         }
 
         const success = Math.random() <= SUCCESS_CHANCE;

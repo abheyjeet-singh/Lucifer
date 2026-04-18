@@ -8,26 +8,12 @@ module.exports = {
     category: 'moderation',
     usage: 'hardban @user [reason]',
     permissions: ['BanMembers'],
-    data: new SlashCommandBuilder()
-        .setName('hardban')
-        .setDescription('Eternal damnation — Ban forever, immune to normal unban')
-        .addUserOption(o => o.setName('user').setDescription('The soul to eternally damn').setRequired(true))
-        .addStringOption(o => o.setName('reason').setDescription('The sin that earned eternal damnation'))
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(message, args, client) {
         const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null);
         if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Mention a valid soul to damn eternally.', color: THEME.error })] });
         const reason = args.slice(1).join(' ') || 'Eternal damnation';
         return this.run(client, message.guild, message.member, target, reason, message);
-    },
-
-    async interact(interaction, client) {
-        const user = interaction.options.getUser('user');
-        const target = await interaction.guild.members.fetch(user.id).catch(() => null);
-        if (!target) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ That soul cannot be found in this realm.', color: THEME.error })], ephemeral: true });
-        const reason = interaction.options.getString('reason') || 'Eternal damnation';
-        return this.run(client, interaction.guild, interaction.member, target, reason, interaction);
     },
 
     async run(client, guild, moderator, target, reason, context) {

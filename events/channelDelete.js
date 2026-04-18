@@ -1,23 +1,36 @@
-const { createEmbed, THEME, modLog } = require('../utils/embeds');
+const { AuditLogEvent, AttachmentBuilder } = require('discord.js');
+const { getGuildSettings } = require('../database/db');
+const { buildModLogCard } = require('../utils/canvasBuilder');
 
 module.exports = {
     once: false,
     async execute(channel, client) {
         if (!channel.guild) return;
+        const settings = getGuildSettings(channel.guild.id);
+        if (!settings.log_channel_id) return;
+        const logChannel = channel.guild.channels.cache.get(settings.log_channel_id);
+        if (!logChannel) return;
 
-        let deleter = 'Unknown';
+        let moderatorTag = 'Unknown';
         try {
-            const auditLogs = await channel.guild.fetchAuditLogs({ type: 12, limit: 1 }); // Type 12 = CHANNEL_DELETE
-            const log = auditLogs.entries.first();
-            if (log && log.target.id === channel.id && Date.now() - log.createdTimestamp < 10000) {
-                deleter = `${log.executor} (${log.executor.id})`;
+            const auditLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelDelete });
+            const deleteLog = auditLogs.entries.first();
+            if (deleteLog && deleteLog.target.id === channel.id) {
+                moderatorTag = deleteLog.executor.tag;
             }
         } catch {}
 
-        await modLog(client, channel.guild, createEmbed({
-            title: '🗑️ Channel Destroyed',
-            description: `**Name:** #${channel.name} (${channel.id})\n**Type:** ${channel.type}\n**Deleted By:** ${deleter}`,
-            color: THEME.error,
-        }));
+        try {
+            const imageBuffer = await buildModLogCard(
+                null, // No avatar for channel events
+                '#9b59b6', // Purple accent
+                'CHANNEL DELETED', 
+                [`Channel: #${channel.name} (${channel.id})`, `Type: ${channel.type}`, `Moderator: ${moderatorTag}`]
+            );
+            const attachment = new AttachmentBuilder(imageBuffer, { name: 'channel_delete.png' });
+            await logChannel.send({ files: [attachment] });
+        } catch (e) {
+            console.error(e);
+        }
     },
 };

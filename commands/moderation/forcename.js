@@ -9,24 +9,12 @@ module.exports = {
     usage: 'forcename @user <nickname>',
     aliases: ['fn'],
     permissions: ['ManageNicknames'],
-    data: new SlashCommandBuilder()
-        .setName('forcename')
-        .setDescription('Force a soul to wear a name they cannot remove')
-        .addUserOption(o => o.setName('user').setDescription('The soul to rename').setRequired(true))
-        .addStringOption(o => o.setName('nickname').setDescription('The name they must wear').setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
 
     async execute(message, args, client) {
         const target = message.mentions.members.first();
         const nickname = args.slice(1).join(' ');
         if (!target || !nickname) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `fn @user <nickname>`', color: THEME.error })] });
         return this.run(client, message.guild, message.member, target, nickname, message);
-    },
-
-    async interact(interaction, client) {
-        const target = interaction.options.getMember('user');
-        const nickname = interaction.options.getString('nickname');
-        return this.run(client, interaction.guild, interaction.member, target, nickname, interaction);
     },
 
     async run(client, guild, moderator, target, nickname, context) {

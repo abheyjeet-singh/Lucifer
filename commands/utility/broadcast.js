@@ -1,30 +1,15 @@
-const { SlashCommandBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
 
 module.exports = {
     name: 'broadcast',
     description: 'Send a message to all server owners (Bot Owner Only)',
-    data: new SlashCommandBuilder()
-        .setName('broadcast')
-        .setDescription('Send a message to all server owners (Bot Owner Only)')
-        .addStringOption(o =>
-            o.setName('message')
-             .setDescription('The announcement to broadcast')
-             .setRequired(true)),
+    // data: REMOVED — This frees up a slash command slot! Use l!broadcast instead.
 
     async execute(message, args, client) {
         if (message.author.id !== process.env.BOT_OWNER_ID) return;
         const msg = args.join(' ');
-        if (!msg) return message.reply('⚠️ Provide a message.');
+        if (!msg) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a message.', color: THEME.error })] });
         return this.runBroadcast(client, msg, message);
-    },
-
-    async interact(interaction, client) {
-        if (interaction.user.id !== process.env.BOT_OWNER_ID) {
-            return interaction.reply({ embeds: [createEmbed({ description: '🚫 Only the Bot Owner can use this.', color: THEME.error })], flags: 64 });
-        }
-        const msg = interaction.options.getString('message');
-        return this.runBroadcast(client, msg, interaction);
     },
 
     async runBroadcast(client, msg, context) {
