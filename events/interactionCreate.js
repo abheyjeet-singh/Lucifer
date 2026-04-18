@@ -58,5 +58,32 @@ module.exports = {
                 if (quotaCommand && quotaCommand.handleModalSubmit) await quotaCommand.handleModalSubmit(interaction, client);
             }
         }
+        
+        // ── BUTTON ROLE HANDLER ──
+        if (interaction.isButton()) {
+            const customId = interaction.customId;
+            if (customId.startsWith('br_')) {
+                const roleId = customId.split('_')[1];
+                const member = interaction.member;
+                const role = interaction.guild.roles.cache.get(roleId);
+
+                if (!role) {
+                    return interaction.reply({ content: '⚠️ This role no longer exists.', ephemeral: true });
+                }
+
+                try {
+                    if (member.roles.cache.has(roleId)) {
+                        await member.roles.remove(role);
+                        return interaction.reply({ content: `🗑️ Removed **${role.name}**`, ephemeral: true });
+                    } else {
+                        await member.roles.add(role);
+                        return interaction.reply({ content: `✅ Added **${role.name}**`, ephemeral: true });
+                    }
+                } catch (error) {
+                    console.error('Button Role Error:', error);
+                    return interaction.reply({ content: '⚠️ I cannot give you this role. My role might be too low.', ephemeral: true });
+                }
+            }
+        }
     },
 };

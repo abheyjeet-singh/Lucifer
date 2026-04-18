@@ -19,6 +19,10 @@ db.exec(`
         mute_role_id TEXT,
         data TEXT DEFAULT '{}'
     );
+    CREATE TABLE IF NOT EXISTS timezones (
+        user_id TEXT PRIMARY KEY,
+        timezone TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS economy (
         key TEXT PRIMARY KEY,
         wallet INTEGER DEFAULT 0,
@@ -69,6 +73,11 @@ db.exec(`
         role_id TEXT,
         PRIMARY KEY (message_id, custom_id)
     );
+    CREATE TABLE IF NOT EXISTS marriages (
+        user_id TEXT PRIMARY KEY,
+        partner_id TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+    );
 `);
 
 // ════════════════════════════════════════
@@ -88,32 +97,27 @@ if (fs.existsSync(jsonPath)) {
         const insertReminder = db.prepare(`INSERT OR REPLACE INTO reminders (id, user_id, channel_id, timestamp, reason) VALUES (?, ?, ?, ?, ?)`);
 
         const transaction = db.transaction(() => {
-            // Guilds
             if (jsonData.guilds) {
                 for (const [gid, g] of Object.entries(jsonData.guilds)) {
                     const { prefix, log_channel_id, mute_role_id, ...rest } = g;
                     insertGuild.run(gid, prefix || 'l!', log_channel_id || null, mute_role_id || null, JSON.stringify(rest));
                 }
             }
-            // Economy
             if (jsonData.economy) {
                 for (const [key, val] of Object.entries(jsonData.economy)) {
                     insertEco.run(key, val.wallet || 0, val.bank || 0, val.last_daily || 0, val.last_work || 0, val.last_rob || 0, val.last_crime || 0);
                 }
             }
-            // Warnings
             if (jsonData.warnings && jsonData.warnings.length > 0) {
                 for (const w of jsonData.warnings) {
                     insertWarn.run(w.guild_id, w.user_id, w.moderator_id, w.reason, w.timestamp);
                 }
             }
-            // Tempbans
             if (jsonData.tempbans && jsonData.tempbans.length > 0) {
                 for (const t of jsonData.tempbans) {
                     insertTempban.run(t.guild_id, t.user_id, t.unban_timestamp);
                 }
             }
-            // Autoresponders
             if (jsonData.guilds) {
                 for (const [gid, g] of Object.entries(jsonData.guilds)) {
                     if (g.auto_responders && g.auto_responders.length > 0) {
@@ -123,13 +127,11 @@ if (fs.existsSync(jsonPath)) {
                     }
                 }
             }
-            // Giveaways
             if (jsonData.giveaways && jsonData.giveaways.length > 0) {
                 for (const g of jsonData.giveaways) {
                     insertGiveaway.run(g.messageId, JSON.stringify(g), g.ended ? 1 : 0);
                 }
             }
-            // Reminders
             if (jsonData.reminders && jsonData.reminders.length > 0) {
                 for (const r of jsonData.reminders) {
                     insertReminder.run(r.id, r.user_id, r.channel_id, r.timestamp, r.reason);
@@ -188,6 +190,31 @@ function removeLogChannel(guildId) { setGuildData(guildId, { log_channel_id: nul
 
 function setMuteRole(guildId, roleId) { setGuildData(guildId, { mute_role_id: roleId }); }
 function removeMuteRole(guildId) { setGuildData(guildId, { mute_role_id: null }); }
+
+function setStarboard(guildId, channelId, emoji, threshold) { setGuildData(guildId, { starboard_channel_id: channelId, starboard_emoji: emoji, starboard_threshold: threshold }); }
+function getStarboard(guildId) { const d = getGuildData(guildId); return { channel_id: d.starboard_channel_id, emoji: d.starboard_emoji || '⭐', threshold: d.starboard_threshold || 3 }; }
+function removeStarboard(guildId) { setGuildData(guildId, { starboard_channel_id: null, starboard_emoji: '⭐', starboard_threshold: 3 }); }
+
+function setSuggestionChannel(guildId, channelId) { setGuildData(guildId, { suggestion_channel_id: channelId }); }
+function getSuggestionChannel(guildId) { return getGuildData(guildId).suggestion_channel_id; }
+function removeSuggestionChannel(guildId) { setGuildData(guildId, { suggestion_channel_id: null }); }
+
+function setCountingChannel(guildId, channelId) { 
+    setGuildData(guildId, { counting_channel_id: channelId }); 
+    const d = getGuildData('0'); 
+    if (!d.counting) d.counting = {};
+    if (!d.counting[guildId]) d.counting[guildId] = { count: 0, last_user_id: null };
+    setGuildData('0', { counting: d.counting });
+}
+function getCounting(guildId) { const d = getGuildData('0'); return d.counting?.[guildId] || { count: 0, last_user_id: null }; }
+function updateCounting(guildId, count, userId) { const d = getGuildData('0'); if (!d.counting) d.counting = {}; d.counting[guildId] = { count, last_user_id: userId }; setGuildData('0', { counting: d.counting }); }
+function removeCountingChannel(guildId) { setGuildData(guildId, { counting_channel_id: null }); const d = getGuildData('0'); if (d.counting) { delete d.counting[guildId]; setGuildData('0', { counting: d.counting }); } }
+
+function addAutoTranslateChannel(guildId, channelId, lang) { const d = getGuildData(guildId); if (!d.auto_translate_channels) d.auto_translate_channels = {}; d.auto_translate_channels[channelId] = lang; setGuildData(guildId, { auto_translate_channels: d.auto_translate_channels }); }
+function removeAutoTranslateChannel(guildId, channelId) { const d = getGuildData(guildId); if (d.auto_translate_channels) { delete d.auto_translate_channels[channelId]; setGuildData(guildId, { auto_translate_channels: d.auto_translate_channels }); } }
+function getAutoTranslateLang(guildId, channelId) { return getGuildData(guildId).auto_translate_channels?.[channelId] || null; }
+
+function removeDynamicVcHub(guildId) { setGuildData(guildId, { dynamic_vc_hub: null }); }
 
 function addHardban(guildId, userId) { const d = getGuildData(guildId); if (!d.hardbans) d.hardbans = []; if (!d.hardbans.includes(userId)) { d.hardbans.push(userId); setGuildData(guildId, { hardbans: d.hardbans }); } }
 function removeHardban(guildId, userId) { const d = getGuildData(guildId); if (d.hardbans) { d.hardbans = d.hardbans.filter(id => id !== userId); setGuildData(guildId, { hardbans: d.hardbans }); } }
@@ -270,11 +297,23 @@ function getActiveGiveaways() { return db.prepare('SELECT * FROM giveaways WHERE
 function getGiveawayById(messageId) { const row = db.prepare('SELECT * FROM giveaways WHERE messageId = ?').get(messageId); return row ? JSON.parse(row.data) : null; }
 function setGiveawayEnded(guildId, messageId) { const row = getGiveawayById(messageId); if (row) { row.ended = true; db.prepare('UPDATE giveaways SET data = ?, ended = 1 WHERE messageId = ?').run(JSON.stringify(row), messageId); } }
 
+// Giveaway Ping Role
+function getGiveawayPingRole(guildId) { return getGuildData(guildId).giveaway_ping_role_id || null; }
+function setGiveawayPingRole(guildId, roleId) { setGuildData(guildId, { giveaway_ping_role_id: roleId }); }
+function removeGiveawayPingRole(guildId) { setGuildData(guildId, { giveaway_ping_role_id: null }); }
+
 // Booster Roles
 function getBoosterRoles(guildId) { return getGuildData(guildId).booster_roles || []; }
 function addBoosterRole(guildId, roleId, bonusEntries) { const d = getGuildData(guildId); if (!d.booster_roles) d.booster_roles = []; if (d.booster_roles.find(b => b.role_id === roleId)) return false; if (d.booster_roles.length >= 10) return 'max'; d.booster_roles.push({ role_id: roleId, bonus_entries: bonusEntries }); setGuildData(guildId, { booster_roles: d.booster_roles }); return true; }
 function removeBoosterRole(guildId, roleId) { const d = getGuildData(guildId); if (d.booster_roles) { d.booster_roles = d.booster_roles.filter(b => b.role_id !== roleId); setGuildData(guildId, { booster_roles: d.booster_roles }); } }
 function clearBoosterRoles(guildId) { setGuildData(guildId, { booster_roles: [] }); }
+
+// Boost Perks Channel & DM Status
+function getBoostPerksChannel(guildId) { return getGuildData(guildId).boost_perks_channel_id || null; }
+function setBoostPerksChannel(guildId, channelId) { setGuildData(guildId, { boost_perks_channel_id: channelId }); }
+function removeBoostPerksChannel(guildId) { setGuildData(guildId, { boost_perks_channel_id: null }); }
+function getBoostDmStatus(guildId, userId) { const d = getGuildData(guildId); return d.boost_dm_status?.[userId] || null; }
+function setBoostDmStatus(guildId, userId, status) { const d = getGuildData(guildId); if (!d.boost_dm_status) d.boost_dm_status = {}; d.boost_dm_status[userId] = status; setGuildData(guildId, { boost_dm_status: d.boost_dm_status }); }
 
 // Economy
 function getUserEconomy(guildId, userId) {
@@ -308,17 +347,54 @@ function setStickyRolesIgnore(guildId, roleIds) { setGuildData(guildId, { sticky
 function saveStickyUserRoles(guildId, userId, roleIds) { const d = getGuildData(guildId); if (!d.sticky_user_roles) d.sticky_user_roles = {}; d.sticky_user_roles[userId] = roleIds; setGuildData(guildId, { sticky_user_roles: d.sticky_user_roles }); }
 function getStickyUserRoles(guildId, userId) { const d = getGuildData(guildId); return d.sticky_user_roles?.[userId] || null; }
 function removeStickyUserRoles(guildId, userId) { const d = getGuildData(guildId); if (d.sticky_user_roles) { delete d.sticky_user_roles[userId]; setGuildData(guildId, { sticky_user_roles: d.sticky_user_roles }); } }
+function removeStickyRolesConfig(guildId) { 
+    setGuildData(guildId, { sticky_roles_enabled: false, sticky_roles_ignore: [] }); 
+    const d = getGuildData(guildId); 
+    if (d.sticky_user_roles) { delete d.sticky_user_roles; setGuildData(guildId, { sticky_user_roles: {} }); } 
+}
 
 // Button Roles
 function addButtonRole(messageId, customId, roleId) { db.prepare('INSERT OR REPLACE INTO button_roles (message_id, custom_id, role_id) VALUES (?, ?, ?)').run(messageId, customId, roleId); }
 function removeButtonRole(messageId, customId) { db.prepare('DELETE FROM button_roles WHERE message_id = ? AND custom_id = ?').run(messageId, customId); }
 function getButtonRoles(messageId) { return db.prepare('SELECT * FROM button_roles WHERE message_id = ?').all(messageId); }
 
+// Marriages
+function getMarriage(userId) {
+    return db.prepare('SELECT * FROM marriages WHERE user_id = ?').get(userId);
+}
+function marryUsers(userId1, userId2) {
+    const now = Date.now();
+    const insert = db.prepare('INSERT OR REPLACE INTO marriages (user_id, partner_id, timestamp) VALUES (?, ?, ?)');
+    const transaction = db.transaction(() => {
+        insert.run(userId1, userId2, now);
+        insert.run(userId2, userId1, now);
+    });
+    transaction();
+}
+function divorceUsers(userId1, userId2) {
+    const remove = db.prepare('DELETE FROM marriages WHERE user_id = ?');
+    const transaction = db.transaction(() => {
+        remove.run(userId1);
+        remove.run(userId2);
+    });
+    transaction();
+}
+// Timezones
+function getTimezone(userId) {
+    const row = db.prepare('SELECT * FROM timezones WHERE user_id = ?').get(userId);
+    return row ? row.timezone : null;
+}
+function setTimezone(userId, tz) {
+    db.prepare('INSERT OR REPLACE INTO timezones (user_id, timezone) VALUES (?, ?)').run(userId, tz);
+}
 
 module.exports = {
     db, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
-    setMuteRole, removeMuteRole,
-    addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
+    setMuteRole, removeMuteRole, setStarboard, getStarboard, removeStarboard,
+    setSuggestionChannel, getSuggestionChannel, removeSuggestionChannel,
+    setCountingChannel, getCounting, updateCounting, removeCountingChannel,
+    addAutoTranslateChannel, removeAutoTranslateChannel, getAutoTranslateLang,
+    removeDynamicVcHub, addHardban, removeHardban, isHardbanned, addTempban, removeTempban, getExpiredTempbans,
     getAiUsage, incrementAiUsage, AI_DAILY_LIMIT, resetAiUsage,
     addForcedName, removeForcedName, getForcedName,
     setDynamicVcHub, getDynamicVcHub, addDynamicVc, removeDynamicVc, isDynamicVc,
@@ -327,13 +403,14 @@ module.exports = {
     addAutoResponder, removeAutoResponder, getAutoResponders, clearAutoResponders,
     addReactionRole: () => {}, removeReactionRole: () => {}, getReactionRoles: () => [], // Legacy stubs
     addWarning, getWarnings, getAllWarnings, clearWarning, clearUserWarnings, getWarningCount,
-    addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded,
+    addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded, getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole,
     isStickyRolesEnabled, setStickyRolesEnabled, getStickyRolesIgnore, setStickyRolesIgnore,
-    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles,
+    saveStickyUserRoles, getStickyUserRoles, removeStickyUserRoles, removeStickyRolesConfig,
     isAfk, setAfk, removeAfk, getSticky, setSticky, removeSticky, getAutoDelete, setAutoDelete, removeAutoDelete,
     addReminder, getExpiredReminders, removeReminder,
-    getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles,
+    getBoosterRoles, addBoosterRole, removeBoosterRole, clearBoosterRoles, getBoostPerksChannel, setBoostPerksChannel, removeBoostPerksChannel, getBoostDmStatus, setBoostDmStatus,
     isAiMentionEnabled, setAiMentionEnabled,
     getUserEconomy, updateUserEconomy, getEconomyLeaderboard,
-    addButtonRole, removeButtonRole, getButtonRoles
+    addButtonRole, removeButtonRole, getButtonRoles, getMarriage, marryUsers, divorceUsers,
+    getTimezone, setTimezone
 };

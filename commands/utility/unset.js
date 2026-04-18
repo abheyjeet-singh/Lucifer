@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { removeStarboard, removeSuggestionChannel, removeCountingChannel, removeLogChannel, removeWelcome, removeVerify, removeDynamicVcHub } = require('../../database/db');
+const { removeSuggestionChannel, removeCountingChannel, removeLogChannel, removeWelcome, removeVerify, removeDynamicVcHub } = require('../../database/db'); // Removed removeStarboard
 
 module.exports = {
     name: 'unset', 
@@ -12,7 +12,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('unset')
         .setDescription('Disable QoL feature setups')
-        .addSubcommand(sc => sc.setName('starboard').setDescription('Disable the Starboard'))
+        // Removed starboard subcommand
         .addSubcommand(sc => sc.setName('suggestions').setDescription('Disable the Suggestion channel'))
         .addSubcommand(sc => sc.setName('counting').setDescription('Disable the Counting channel'))
         .addSubcommand(sc => sc.setName('logchannel').setDescription('Disable the Mod Log channel'))
@@ -28,10 +28,7 @@ module.exports = {
     async interact(interaction, client) {
         const sub = interaction.options.getSubcommand();
         
-        if (sub === 'starboard') { 
-            removeStarboard(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '⭐ Starboard has been disabled.', color: THEME.accent })] }); 
-        }
+        // Removed starboard block
         if (sub === 'suggestions') { 
             removeSuggestionChannel(interaction.guild.id); 
             return interaction.reply({ embeds: [createEmbed({ description: '🗳️ Suggestion channel has been disabled.', color: THEME.accent })] }); 

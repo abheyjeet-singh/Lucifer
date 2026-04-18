@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { getUserEconomy, updateUserEconomy } = require('../../database/db');
+const { getUserEconomy, updateUserEconomy, getMarriage } = require('../../database/db'); // Added getMarriage
 
 const DAILY_AMOUNT = 500;
 const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -27,13 +27,18 @@ module.exports = {
             })] });
         }
 
-        eco.wallet += DAILY_AMOUNT;
+        // Marriage Bonus (+10%)
+        const marriage = getMarriage(message.author.id);
+        const bonusMultiplier = marriage ? 1.1 : 1;
+        const finalAmount = Math.floor(DAILY_AMOUNT * bonusMultiplier);
+        
+        eco.wallet += finalAmount;
         eco.last_daily = now;
         updateUserEconomy(message.guild.id, message.author.id, eco);
 
         return message.reply({ embeds: [createEmbed({ 
             title: '🔥 Soul Collection',
-            description: `✨ **The dark lord grants you tribute!**\n\n💸 You claimed **${DAILY_AMOUNT.toLocaleString()} LC**!\n💳 Wallet Balance: **${eco.wallet.toLocaleString()} LC**`, 
+            description: `✨ **The dark lord grants you tribute!**\n\n💸 You claimed **${finalAmount.toLocaleString()} LC**!${marriage ? ' *(+10% Marriage Bonus!)*' : ''}\n💳 Wallet Balance: **${eco.wallet.toLocaleString()} LC**`, 
             color: THEME.success,
             footer: { text: '🔥 Lucifer\'s Economy | Lord of Hell' }
         })] });
@@ -54,13 +59,18 @@ module.exports = {
             })], flags: 64 });
         }
 
-        eco.wallet += DAILY_AMOUNT;
+        // Marriage Bonus (+10%)
+        const marriage = getMarriage(interaction.user.id);
+        const bonusMultiplier = marriage ? 1.1 : 1;
+        const finalAmount = Math.floor(DAILY_AMOUNT * bonusMultiplier);
+
+        eco.wallet += finalAmount;
         eco.last_daily = now;
         updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
 
         return interaction.reply({ embeds: [createEmbed({ 
             title: '🔥 Soul Collection',
-            description: `✨ **The dark lord grants you tribute!**\n\n💸 You claimed **${DAILY_AMOUNT.toLocaleString()} LC**!\n💳 Wallet Balance: **${eco.wallet.toLocaleString()} LC**`, 
+            description: `✨ **The dark lord grants you tribute!**\n\n💸 You claimed **${finalAmount.toLocaleString()} LC**!${marriage ? ' *(+10% Marriage Bonus!)*' : ''}\n💳 Wallet Balance: **${eco.wallet.toLocaleString()} LC**`, 
             color: THEME.success,
             footer: { text: '🔥 Lucifer\'s Economy | Lord of Hell' }
         })] });
