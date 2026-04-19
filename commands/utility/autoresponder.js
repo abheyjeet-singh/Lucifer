@@ -104,19 +104,19 @@ module.exports = {
             const trigger = args[1];
             const response = args[2];
             const matchType = args[3]?.toLowerCase() || 'contains';
-            if (!trigger) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!autoresponder add <trigger> [response] [contains|exact|startswith]`\n*(For emoji/GIF, use the `/autoresponder add` slash command)*', color: THEME.error })] });
-            if (!response) return message.reply({ embeds: [createEmbed({ description: '⚠️ You must provide a response text via prefix. Use `/autoresponder add` for emoji/GIF options!', color: THEME.error })] });
-            if (!['contains', 'exact', 'startswith'].includes(matchType)) return message.reply({ embeds: [createEmbed({ description: '⚠️ Match type must be: `contains`, `exact`, or `startswith`', color: THEME.error })] });
+            if (!trigger) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!autoresponder add <trigger> [response] [contains|exact|startswith]`\n*(For emoji/GIF, use the `/autoresponder add` slash command)*', color: THEME.error })] });
+            if (!response) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ You must provide a response text via prefix. Use `/autoresponder add` for emoji/GIF options!', color: THEME.error })] });
+            if (!['contains', 'exact', 'startswith'].includes(matchType)) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Match type must be: `contains`, `exact`, or `startswith`', color: THEME.error })] });
             return this.addResponse(client, message.guild, message.member, trigger, response, matchType, null, null, message);
         }
         if (sub === 'remove') {
             const id = parseInt(args[1]);
-            if (isNaN(id)) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a valid ID. Usage: `l!autoresponder remove <id>`', color: THEME.error })] });
+            if (isNaN(id)) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide a valid ID. Usage: `l!autoresponder remove <id>`', color: THEME.error })] });
             return this.removeResponse(client, message.guild, message.member, id, message);
         }
         if (sub === 'clear') return this.clearAll(client, message.guild, message.member, message);
         if (sub === 'list' || !sub) return this.showList(client, message.guild, message);
-        return message.reply({ embeds: [createEmbed({ description: '⚠️ Unknown subcommand. Use: `add`, `remove`, `list`, `clear`', color: THEME.error })] });
+        return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Unknown subcommand. Use: `add`, `remove`, `list`, `clear`', color: THEME.error })] });
     },
 
     async interact(interaction, client) {
@@ -129,7 +129,7 @@ module.exports = {
             const imageUrlInput = interaction.options.getString('image_url');
 
             if (!response && !emoji && !imageUrlInput) {
-                return interaction.reply({ embeds: [createEmbed({ description: '⚠️ You must provide at least a response, emoji, or image URL!', color: THEME.error })], flags: 64 });
+                return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ You must provide at least a response, emoji, or image URL!', color: THEME.error })], flags: 64 });
             }
 
             await interaction.deferReply({ ephemeral: false });
@@ -150,10 +150,10 @@ module.exports = {
     },
 
     async addResponse(client, guild, member, trigger, response, matchType, imageUrl, emoji, context) {
-        if (!hasPermission(member, 'ManageMessages')) return context.reply({ embeds: [createEmbed({ description: '🚫 You need **Manage Messages** permission.', color: THEME.error })] });
+        if (!hasPermission(member, 'ManageMessages')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 You need **Manage Messages** permission.', color: THEME.error })] });
 
         const current = getAutoResponders(guild.id);
-        if (current.length >= 25) return context.reply({ embeds: [createEmbed({ description: '⚠️ Maximum of 25 auto responders reached. Remove some first.', color: THEME.error })] });
+        if (current.length >= 25) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Maximum of 25 auto responders reached. Remove some first.', color: THEME.error })] });
 
         const id = addAutoResponder(guild.id, trigger, response, matchType, imageUrl, emoji);
         const matchLabel = { contains: 'Contains', exact: 'Exact Match', startswith: 'Starts With' }[matchType];
@@ -175,29 +175,29 @@ module.exports = {
     },
 
     async removeResponse(client, guild, member, id, context) {
-        if (!hasPermission(member, 'ManageMessages')) return context.reply({ embeds: [createEmbed({ description: '🚫 You need **Manage Messages** permission.', color: THEME.error })] });
+        if (!hasPermission(member, 'ManageMessages')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 You need **Manage Messages** permission.', color: THEME.error })] });
 
         const current = getAutoResponders(guild.id);
         const exists = current.find(a => a.id === id);
-        if (!exists) return context.reply({ embeds: [createEmbed({ description: '⚠️ No auto responder found with that ID.', color: THEME.error })] });
+        if (!exists) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ No auto responder found with that ID.', color: THEME.error })] });
 
         removeAutoResponder(guild.id, id);
-        return context.reply({ embeds: [createEmbed({ description: `✅ Removed auto responder **#${id}** (Trigger: \`${exists.trigger}\`)`, color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `✅ Removed auto responder **#${id}** (Trigger: \`${exists.trigger}\`)`, color: THEME.success })] });
     },
 
     async clearAll(client, guild, member, context) {
-        if (!hasPermission(member, 'ManageMessages')) return context.reply({ embeds: [createEmbed({ description: '🚫 You need **Manage Messages** permission.', color: THEME.error })] });
+        if (!hasPermission(member, 'ManageMessages')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 You need **Manage Messages** permission.', color: THEME.error })] });
 
         const current = getAutoResponders(guild.id);
-        if (current.length === 0) return context.reply({ embeds: [createEmbed({ description: '⚠️ No auto responders to clear.', color: THEME.dark })] });
+        if (current.length === 0) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ No auto responders to clear.', color: THEME.dark })] });
 
         clearAutoResponders(guild.id);
-        return context.reply({ embeds: [createEmbed({ description: `✅ Cleared all **${current.length}** auto responder(s).`, color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `✅ Cleared all **${current.length}** auto responder(s).`, color: THEME.success })] });
     },
 
     async showList(client, guild, context) {
         const list = getAutoResponders(guild.id);
-        if (list.length === 0) return context.reply({ embeds: [createEmbed({ description: '📜 No auto responders set. Use `/autoresponder add` to create one.', color: THEME.dark })] });
+        if (list.length === 0) return context.reply({ embeds: [createEmbed({ context: guild, description: '📜 No auto responders set. Use `/autoresponder add` to create one.', color: THEME.dark })] });
 
         const matchLabel = { contains: 'Contains', exact: 'Exact', startswith: 'Starts' };
         const items = list.map(a => {

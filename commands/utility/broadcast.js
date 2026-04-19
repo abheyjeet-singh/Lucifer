@@ -8,7 +8,7 @@ module.exports = {
     async execute(message, args, client) {
         if (message.author.id !== process.env.BOT_OWNER_ID) return;
         const msg = args.join(' ');
-        if (!msg) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a message.', color: THEME.error })] });
+        if (!msg) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide a message.', color: THEME.error })] });
         return this.runBroadcast(client, msg, message);
     },
 
@@ -16,7 +16,7 @@ module.exports = {
         let success = 0;
         let failed = 0;
 
-        await context.reply({ embeds: [createEmbed({ description: '📢 Broadcasting message to all realm owners...', color: THEME.celestial })] });
+        await context.reply({ embeds: [createEmbed({ context: guild, description: '📢 Broadcasting message to all realm owners...', color: THEME.celestial })] });
 
         for (const guild of client.guilds.cache.values()) {
             try {

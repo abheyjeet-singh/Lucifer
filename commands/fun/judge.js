@@ -41,6 +41,7 @@ module.exports = {
         const verdict = VERDICTS[Math.floor(Math.random() * VERDICTS.length)];
 
         return context.reply({ embeds: [createEmbed({
+            context: context,
             title: '⚖️ Divine Judgment',
             description: `**Defendant:** ${target}\n**Sin:** ${sin}\n**Verdict:** ${verdict}`,
             color: THEME.secondary,

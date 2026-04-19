@@ -12,7 +12,7 @@ module.exports = {
 
     async execute(message, args, client) {
         const word = args.join(' ');
-        if (!word) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a word! Usage: `l!define hello`', color: THEME.accent })] });
+        if (!word) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide a word! Usage: `l!define hello`', color: THEME.accent })] });
         return this.fetchDefinition(word, message);
     },
 
@@ -39,7 +39,7 @@ module.exports = {
                 footer: { text: 'Powered by Free Dictionary API' }
             })] });
         } catch (e) {
-            return context.reply({ embeds: [createEmbed({ description: '❌ No definition found for that word.', color: THEME.error })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '❌ No definition found for that word.', color: THEME.error })] });
         }
     }
 };

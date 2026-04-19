@@ -12,7 +12,7 @@ module.exports = {
 
     async execute(message, args, client) {
         const city = args.join(' ');
-        if (!city) return message.reply({ embeds: [createEmbed({ description: '⚠️ Please provide a city! Usage: `l!weather London`', color: THEME.accent })] });
+        if (!city) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Please provide a city! Usage: `l!weather London`', color: THEME.accent })] });
         return this.fetchWeather(city, message);
     },
 
@@ -39,7 +39,7 @@ module.exports = {
                 color: THEME.primary
             })] });
         } catch (e) {
-            return context.reply({ embeds: [createEmbed({ description: '❌ Could not find weather data for that location.', color: THEME.error })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '❌ Could not find weather data for that location.', color: THEME.error })] });
         }
     }
 };

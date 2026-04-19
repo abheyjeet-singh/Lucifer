@@ -21,6 +21,6 @@ module.exports = {
             color: THEME.success,
         }));
 
-        return context.reply({ embeds: [createEmbed({ description: `🔓 ${channel} has been unsealed. Freedom restored.`, color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🔓 ${channel} has been unsealed. Freedom restored.`, color: THEME.success })] });
     },
 };

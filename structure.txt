@@ -8,18 +8,23 @@
 │   │   ├── blackjack.js
 │   │   ├── coinflip.js
 │   │   ├── dropkick.js
+│   │   ├── hug.js
 │   │   ├── judge.js
 │   │   ├── kill.js
 │   │   ├── kiss.js
 │   │   ├── lucifer-quote.js
 │   │   ├── meme.js
+│   │   ├── pat.js
+│   │   ├── poke.js
 │   │   ├── punch.js
 │   │   ├── quote.js
 │   │   ├── roulette.js
 │   │   ├── rps.js
+│   │   ├── ship.js
 │   │   ├── slap.js
 │   │   ├── slots.js
-│   │   └── tr.js
+│   │   ├── tr.js
+│   │   └── wanted.js
 │   ├── moderation
 │   │   ├── automod.js
 │   │   ├── ban.js
@@ -70,12 +75,14 @@
 │       ├── autoresponder.js
 │       ├── autotr.js
 │       ├── avatar.js
+│       ├── badges.js
 │       ├── balance.js
 │       ├── boosterrole.js
 │       ├── botinfo.js
 │       ├── broadcast.js
 │       ├── buttonrole.js
 │       ├── buy.js
+│       ├── collection.js
 │       ├── createvc.js
 │       ├── crime.js
 │       ├── daily.js
@@ -85,6 +92,8 @@
 │       ├── givecoins.js
 │       ├── guide.js
 │       ├── help.js
+│       ├── inventory.js
+│       ├── inviteevent.js
 │       ├── logchannel.js
 │       ├── marriageinfo.js
 │       ├── marriage.js
@@ -97,11 +106,13 @@
 │       ├── quota.js
 │       ├── reactionrole.js
 │       ├── remind.js
+│       ├── rich.js
 │       ├── rob.js
 │       ├── send.js
 │       ├── serverinfo.js
 │       ├── servers.js
 │       ├── setup.js
+│       ├── ships.js
 │       ├── shop.js
 │       ├── stickyrole.js
 │       ├── suggest.js
@@ -110,6 +121,7 @@
 │       ├── unset.js
 │       ├── userinfo.js
 │       ├── verify.js
+│       ├── wear.js
 │       ├── weather.js
 │       ├── welcome.js
 │       ├── withdraw.js
@@ -135,6 +147,7 @@
 │   ├── guildUpdate.js
 │   ├── interactionCreate.js
 │   ├── inviteCreate.js
+│   ├── inviteDelete.js
 │   ├── messageCreate.js
 │   ├── messageDelete.js
 │   ├── messageReactionAdd.js
@@ -157,6 +170,7 @@
 ├── Roboto-Regular.ttf
 ├── structure.txt
 └── utils
+    ├── badges.js
     ├── canvasBuilder.js
     ├── embeds.js
     ├── logger.js
@@ -164,4 +178,4 @@
     ├── permissions.js
     └── quoteGenerator.js
 
-10 directories, 155 files
+10 directories, 169 files

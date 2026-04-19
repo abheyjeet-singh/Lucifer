@@ -45,17 +45,17 @@ module.exports = {
         if (sub === 'add') {
             const role = message.mentions.roles.first();
             const bonus = parseInt(args[2]);
-            if (!role || isNaN(bonus) || bonus < 1) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!boosterrole add @role <1-10>`', color: THEME.error })] });
+            if (!role || isNaN(bonus) || bonus < 1) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!boosterrole add @role <1-10>`', color: THEME.error })] });
             return this.addRole(client, message.guild, message.member, role, bonus, message);
         }
         if (sub === 'remove') {
             const role = message.mentions.roles.first();
-            if (!role) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!boosterrole remove @role`', color: THEME.error })] });
+            if (!role) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!boosterrole remove @role`', color: THEME.error })] });
             return this.removeRole(client, message.guild, message.member, role, message);
         }
         if (sub === 'clear') return this.clearAll(client, message.guild, message.member, message);
         if (sub === 'list' || !sub) return this.showList(client, message.guild, message);
-        return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `add`, `remove`, `list`, `clear`', color: THEME.error })] });
+        return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use: `add`, `remove`, `list`, `clear`', color: THEME.error })] });
     },
 
     async interact(interaction, client) {
@@ -74,12 +74,12 @@ module.exports = {
     },
 
     async addRole(client, guild, member, role, bonus, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Admin only.', color: THEME.error })] });
-        if (role.id === guild.id) return context.reply({ embeds: [createEmbed({ description: '⚠️ Cannot use @everyone.', color: THEME.error })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Admin only.', color: THEME.error })] });
+        if (role.id === guild.id) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Cannot use @everyone.', color: THEME.error })] });
 
         const result = addBoosterRole(guild.id, role.id, bonus);
-        if (result === false) return context.reply({ embeds: [createEmbed({ description: `⚠️ ${role} is already a booster role. Remove it first to change the bonus.`, color: THEME.error })] });
-        if (result === 'max') return context.reply({ embeds: [createEmbed({ description: '⚠️ Maximum of 10 booster roles reached. Remove one first.', color: THEME.error })] });
+        if (result === false) return context.reply({ embeds: [createEmbed({ context: guild, description: `⚠️ ${role} is already a booster role. Remove it first to change the bonus.`, color: THEME.error })] });
+        if (result === 'max') return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Maximum of 10 booster roles reached. Remove one first.', color: THEME.error })] });
 
         return context.reply({ embeds: [createEmbed({
             title: '🚀 Booster Role Added',
@@ -89,29 +89,29 @@ module.exports = {
     },
 
     async removeRole(client, guild, member, role, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Admin only.', color: THEME.error })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Admin only.', color: THEME.error })] });
 
         const current = getBoosterRoles(guild.id);
         const exists = current.find(b => b.role_id === role.id);
-        if (!exists) return context.reply({ embeds: [createEmbed({ description: `⚠️ ${role} is not a booster role.`, color: THEME.error })] });
+        if (!exists) return context.reply({ embeds: [createEmbed({ context: guild, description: `⚠️ ${role} is not a booster role.`, color: THEME.error })] });
 
         removeBoosterRole(guild.id, role.id);
-        return context.reply({ embeds: [createEmbed({ description: `🚀 Removed ${role} from booster roles. They now have normal chances.`, color: THEME.primary })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🚀 Removed ${role} from booster roles. They now have normal chances.`, color: THEME.primary })] });
     },
 
     async clearAll(client, guild, member, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Admin only.', color: THEME.error })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Admin only.', color: THEME.error })] });
 
         const current = getBoosterRoles(guild.id);
-        if (current.length === 0) return context.reply({ embeds: [createEmbed({ description: '⚠️ No booster roles to clear.', color: THEME.dark })] });
+        if (current.length === 0) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ No booster roles to clear.', color: THEME.dark })] });
 
         clearBoosterRoles(guild.id);
-        return context.reply({ embeds: [createEmbed({ description: `🚀 Cleared all **${current.length}** booster role(s). Everyone now has equal chances.`, color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🚀 Cleared all **${current.length}** booster role(s). Everyone now has equal chances.`, color: THEME.success })] });
     },
 
     async showList(client, guild, context) {
         const list = getBoosterRoles(guild.id);
-        if (list.length === 0) return context.reply({ embeds: [createEmbed({ description: '🚀 No booster roles set. Use `/boosterrole add` to add one.', color: THEME.dark })] });
+        if (list.length === 0) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚀 No booster roles set. Use `/boosterrole add` to add one.', color: THEME.dark })] });
 
         const items = list.map(b => {
             const role = guild.roles.cache.get(b.role_id);

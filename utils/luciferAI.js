@@ -724,7 +724,7 @@ async function executeTool(toolName, args, message, client) {
                 const target = await guild.members.fetch(args.user_id).catch(() => null);
                 if (!target) return `FAILED|User <@${args.user_id}> not found.`;
                 try {
-                    await target.send({ embeds: [createEmbed({ description: args.message, color: THEME.primary, footer: { text: `Message from ${guild.name}` } })] });
+                    await target.send({ embeds: [createEmbed({ context: guild, description: args.message, color: THEME.primary, footer: { text: `Message from ${guild.name}` } })] });
                     return `OK|DM sent to <@${args.user_id}>.`;
                 } catch (e) {
                     return `FAILED|Could not DM <@${args.user_id}>. They likely have DMs disabled.`;
@@ -751,7 +751,7 @@ async function executeTool(toolName, args, message, client) {
                 const isTicket = Object.values(ticketData.active).includes(message.channel.id);
                 if (!isTicket && !message.channel.name.includes('ticket')) return 'FAILED|This channel is not a ticket.';
                 
-                await message.channel.send({ embeds: [createEmbed({ description: `🔒 This ticket is being closed by <@${member.id}>. Deleting in 5 seconds...`, color: THEME.accent })] });
+                await message.channel.send({ embeds: [createEmbed({ context: guild, description: `🔒 This ticket is being closed by <@${member.id}>. Deleting in 5 seconds...`, color: THEME.accent })] });
                 setTimeout(() => message.channel.delete().catch(() => {}), 5000);
                 
                 // Remove from DB if it's an active ticket

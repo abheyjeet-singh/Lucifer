@@ -21,6 +21,6 @@ module.exports = {
             color: THEME.accent,
         }));
 
-        return context.reply({ embeds: [createEmbed({ description: `🔒 ${channel} has been sealed shut by divine authority.`, color: THEME.primary })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🔒 ${channel} has been sealed shut by divine authority.`, color: THEME.primary })] });
     },
 };

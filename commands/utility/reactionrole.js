@@ -17,7 +17,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(message, args, client) {
-        if (args.length < 3) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `l!reactionrole <message_id> <emoji> @role`', color: THEME.error })] });
+        if (args.length < 3) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use: `l!reactionrole <message_id> <emoji> @role`', color: THEME.error })] });
         return this.run(client, message.guild, args[0], args[1], message.mentions.roles.first(), message);
     },
 
@@ -26,7 +26,7 @@ module.exports = {
     },
 
     async run(client, guild, messageId, emoji, role, context) {
-        if (!role) return context.reply({ embeds: [createEmbed({ description: '⚠️ Mention a valid role.', color: THEME.error })] });
+        if (!role) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Mention a valid role.', color: THEME.error })] });
 
         try {
             // Fetch message to ensure it exists
@@ -35,14 +35,14 @@ module.exports = {
             for (const [, ch] of channels) {
                 try { targetMsg = await ch.messages.fetch(messageId); if (targetMsg) break; } catch {}
             }
-            if (!targetMsg) return context.reply({ embeds: [createEmbed({ description: '⚠️ Message not found. Ensure the ID is correct and I can see the channel.', color: THEME.error })] });
+            if (!targetMsg) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Message not found. Ensure the ID is correct and I can see the channel.', color: THEME.error })] });
 
             await targetMsg.react(emoji);
             addReactionRole(guild.id, messageId, emoji, role.id);
 
-            return context.reply({ embeds: [createEmbed({ description: `🎭 Sigil set!\n**Message:** [Jump](${targetMsg.url})\n**Emoji:** ${emoji}\n**Role:** ${role}`, color: THEME.success })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `🎭 Sigil set!\n**Message:** [Jump](${targetMsg.url})\n**Emoji:** ${emoji}\n**Role:** ${role}`, color: THEME.success })] });
         } catch (error) {
-            return context.reply({ embeds: [createEmbed({ description: '💀 Failed to set sigil. I might not have access to react, or the emoji is invalid.', color: THEME.error })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '💀 Failed to set sigil. I might not have access to react, or the emoji is invalid.', color: THEME.error })] });
         }
     },
 };

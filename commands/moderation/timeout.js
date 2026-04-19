@@ -13,14 +13,14 @@ module.exports = {
     
     async execute(message, args, client) {
         const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null);
-        if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Mention a valid user.', color: THEME.error })] });
+        if (!target) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Mention a valid user.', color: THEME.error })] });
         const ms = parseDuration(args[1]);
-        if (!ms) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration (use 1m, 1h, 1d).', color: THEME.error })] });
+        if (!ms) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid duration (use 1m, 1h, 1d).', color: THEME.error })] });
         const reason = args.slice(2).join(' ') || 'No reason provided';
-        if (ms > 2419200000) return message.reply({ embeds: [createEmbed({ description: '⚠️ Max timeout is 28 days.', color: THEME.error })] });
+        if (ms > 2419200000) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Max timeout is 28 days.', color: THEME.error })] });
         try {
             await target.timeout(ms, reason);
-            message.reply({ embeds: [createEmbed({ description: `🔇 **${target.user.tag}** timed out for **${args[1]}**.\n> ${reason}`, color: THEME.success })] });
-        } catch { message.reply({ embeds: [createEmbed({ description: '🚫 Cannot timeout this user (check role hierarchy).', color: THEME.error })] }); }
+            message.reply({ embeds: [createEmbed({ context: message, description: `🔇 **${target.user.tag}** timed out for **${args[1]}**.\n> ${reason}`, color: THEME.success })] });
+        } catch { message.reply({ embeds: [createEmbed({ context: message, description: '🚫 Cannot timeout this user (check role hierarchy).', color: THEME.error })] }); }
     }
 };

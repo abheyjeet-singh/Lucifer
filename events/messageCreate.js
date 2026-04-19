@@ -71,14 +71,14 @@ module.exports = {
         if (isAfk(message.author.id, message.guild.id)) {
             removeAfk(message.author.id, message.guild.id);
             message.member.setNickname(null).catch(() => {});
-            message.reply({ embeds: [createEmbed({ description: '✨ You have awakened from your slumber.', color: THEME.success })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
+            message.reply({ embeds: [createEmbed({ context: message, description: '✨ You have awakened from your slumber.', color: THEME.success })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
         }
 
         // ── 2. Check AFK Mentions ──
         if (message.mentions.users.size > 0) {
             for (const [id] of message.mentions.users) {
                 const afkData = isAfk(id, message.guild.id);
-                if (afkData) message.reply({ embeds: [createEmbed({ description: `💤 <@${id}> is currently slumbering: ${afkData.reason} (<t:${Math.floor(afkData.timestamp / 1000)}:R>)`, color: THEME.dark })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
+                if (afkData) message.reply({ embeds: [createEmbed({ context: message, description: `💤 <@${id}> is currently slumbering: ${afkData.reason} (<t:${Math.floor(afkData.timestamp / 1000)}:R>)`, color: THEME.dark })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 10000));
             }
         }
 
@@ -108,21 +108,21 @@ module.exports = {
             const messages = await message.channel.messages.fetch({ limit: 10 });
             const lastSticky = messages.find(m => m.author.id === client.user.id && m.embeds[0]?.footer?.text?.includes('📌 Sticky Message'));
             if (lastSticky) await lastSticky.delete().catch(() => {});
-            message.channel.send({ embeds: [createEmbed({ description: stickyContent, color: THEME.primary, footer: { text: '📌 Sticky Message' } })] });
+            message.channel.send({ embeds: [createEmbed({ context: guild, description: stickyContent, color: THEME.primary, footer: { text: '📌 Sticky Message' } })] });
         }
 
         // ── ANTI-SIN SYSTEM ──
         const automod = getAutomod(message.guild.id);
         if (automod.enabled && !hasPermission(message.member, 'ManageMessages')) {
-            if (automod.anti_link) { const linkRegex = /(https?:\/\/|discord\.(gg|io|me|li)|discordapp\.com\/invite)\/[^\s]+/gi; if (linkRegex.test(message.content)) { await message.delete().catch(() => {}); return message.channel.send({ embeds: [createEmbed({ description: `🚫 ${message.author}, links are forbidden here.`, color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } }
-            if (automod.anti_massmention) { const mentions = message.mentions.users.size + message.mentions.roles.size; if (mentions >= 5) { await message.delete().catch(() => {}); addWarning(message.guild.id, message.author.id, client.user.id, 'Mass Mention'); return message.channel.send({ embeds: [createEmbed({ description: `🚫 ${message.author}, mass pinging is forbidden.`, color: THEME.accent })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } }
-            if (automod.anti_badwords && automod.badwords.length > 0) { const lowerMsg = message.content.toLowerCase(); const found = automod.badwords.find(w => lowerMsg.includes(w)); if (found) { await message.delete().catch(() => {}); return message.channel.send({ embeds: [createEmbed({ description: `🚫 ${message.author}, that language is forbidden.`, color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } }
-            if (automod.anti_spam) { const key = `${message.guild.id}-${message.author.id}`; const userData = spamMap.get(key) || { count: 0, lastMessage: '' }; if (message.content === userData.lastMessage) { userData.count++; } else { userData.count = 1; } userData.lastMessage = message.content; spamMap.set(key, userData); if (userData.count >= 5) { const member = await message.guild.members.fetch(message.author.id).catch(() => null); if (member) await member.timeout(60000, 'Spamming').catch(() => {}); spamMap.delete(key); return message.channel.send({ embeds: [createEmbed({ description: `🔇 ${message.author}, muted for spamming.`, color: THEME.accent })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } setTimeout(() => { if (spamMap.has(key) && spamMap.get(key).count === userData.count) spamMap.delete(key); }, 5000); }
+            if (automod.anti_link) { const linkRegex = /(https?:\/\/|discord\.(gg|io|me|li)|discordapp\.com\/invite)\/[^\s]+/gi; if (linkRegex.test(message.content)) { await message.delete().catch(() => {}); return message.channel.send({ embeds: [createEmbed({ context: guild, description: `🚫 ${message.author}, links are forbidden here.`, color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } }
+            if (automod.anti_massmention) { const mentions = message.mentions.users.size + message.mentions.roles.size; if (mentions >= 5) { await message.delete().catch(() => {}); addWarning(message.guild.id, message.author.id, client.user.id, 'Mass Mention'); return message.channel.send({ embeds: [createEmbed({ context: guild, description: `🚫 ${message.author}, mass pinging is forbidden.`, color: THEME.accent })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } }
+            if (automod.anti_badwords && automod.badwords.length > 0) { const lowerMsg = message.content.toLowerCase(); const found = automod.badwords.find(w => lowerMsg.includes(w)); if (found) { await message.delete().catch(() => {}); return message.channel.send({ embeds: [createEmbed({ context: guild, description: `🚫 ${message.author}, that language is forbidden.`, color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } }
+            if (automod.anti_spam) { const key = `${message.guild.id}-${message.author.id}`; const userData = spamMap.get(key) || { count: 0, lastMessage: '' }; if (message.content === userData.lastMessage) { userData.count++; } else { userData.count = 1; } userData.lastMessage = message.content; spamMap.set(key, userData); if (userData.count >= 5) { const member = await message.guild.members.fetch(message.author.id).catch(() => null); if (member) await member.timeout(60000, 'Spamming').catch(() => {}); spamMap.delete(key); return message.channel.send({ embeds: [createEmbed({ context: guild, description: `🔇 ${message.author}, muted for spamming.`, color: THEME.accent })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000)); } setTimeout(() => { if (spamMap.has(key) && spamMap.get(key).count === userData.count) spamMap.delete(key); }, 5000); }
         }
 
         // ── AUTO-TRANSLATE ──
         const targetLang = getAutoTranslateLang(message.guild.id, message.channel.id);
-        if (targetLang && message.content.length > 0) { try { const result = await translate(message.content, { to: targetLang }); if (result.from.language.iso && result.from.language.iso !== targetLang) { await message.reply({ embeds: [createEmbed({ description: `🌐 **${targetLang.toUpperCase()} Translation** (from ${result.from.language.iso.toUpperCase()}):\n> ${result.text.substring(0, 2048)}`, color: THEME.success })] }); } } catch {} }
+        if (targetLang && message.content.length > 0) { try { const result = await translate(message.content, { to: targetLang }); if (result.from.language.iso && result.from.language.iso !== targetLang) { await message.reply({ embeds: [createEmbed({ context: message, description: `🌐 **${targetLang.toUpperCase()} Translation** (from ${result.from.language.iso.toUpperCase()}):\n> ${result.text.substring(0, 2048)}`, color: THEME.success })] }); } } catch {} }
 
         // ════════════════════════════════════════
         // ── LUCIFER AI — MENTION + SEQUENTIAL CHAT ──
@@ -201,9 +201,9 @@ module.exports = {
         const command = client.commands.get(commandName);
         if (!command) return;
 
-        if (command.permissions && command.permissions.length > 0) { const missing = command.permissions.filter(p => !hasPermission(message.member, p)); if (missing.length > 0) { return message.reply({ embeds: [createEmbed({ description: `🚫 Missing: \`${missing.join(', ')}\``, color: THEME.error })] }); } }
+        if (command.permissions && command.permissions.length > 0) { const missing = command.permissions.filter(p => !hasPermission(message.member, p)); if (missing.length > 0) { return message.reply({ embeds: [createEmbed({ context: message, description: `🚫 Missing: \`${missing.join(', ')}\``, color: THEME.error })] }); } }
 
         try { await command.execute(message, args, client); }
-        catch (error) { console.error(error); message.reply({ embeds: [createEmbed({ description: '💀 Error occurred.', color: THEME.error })] }).catch(() => {}); }
+        catch (error) { console.error(error); message.reply({ embeds: [createEmbed({ context: message, description: '💀 Error occurred.', color: THEME.error })] }).catch(() => {}); }
     },
 };

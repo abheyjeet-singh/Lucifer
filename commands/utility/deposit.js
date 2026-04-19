@@ -1,6 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
 const { getUserEconomy, updateUserEconomy } = require('../../database/db');
+const { buildReceiptCard } = require('../../utils/canvasBuilder');
 
 module.exports = {
     name: 'deposit',
@@ -18,19 +19,29 @@ module.exports = {
         const eco = getUserEconomy(message.guild.id, message.author.id);
         const amount = input.toLowerCase() === 'max' || input.toLowerCase() === 'all' ? eco.wallet : parseInt(input);
 
-        if (isNaN(amount) || amount <= 0) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid amount.', color: THEME.error })] });
-        if (eco.wallet < amount) return message.reply({ embeds: [createEmbed({ description: '⚠️ You don\'t have that much in your wallet!', color: THEME.error })] });
+        if (isNaN(amount) || amount <= 0) {
+            try {
+                const imageBuffer = await buildReceiptCard(message.member, 'Infernal Bank', 'ERROR', 'Invalid amount provided.', false);
+                return message.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'deposit.png' })] });
+            } catch { return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid amount.', color: THEME.error })] }); }
+        }
+        
+        if (eco.wallet < amount) {
+            try {
+                const imageBuffer = await buildReceiptCard(message.member, 'Infernal Bank', 'INSUFFICIENT', 'You don\'t have that much in your wallet!', false);
+                return message.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'deposit.png' })] });
+            } catch { return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Not enough LC in wallet!', color: THEME.error })] }); }
+        }
 
         eco.wallet -= amount;
         eco.bank += amount;
         updateUserEconomy(message.guild.id, message.author.id, eco);
 
-        return message.reply({ embeds: [createEmbed({
-            title: '🏦 The Infernal Bank',
-            description: `✅ **Transaction Approved!**\n\n➡️ Deposited: **${amount.toLocaleString()} LC**\n💳 Wallet Balance: **${eco.wallet.toLocaleString()} LC**\n🏦 Bank Balance: **${eco.bank.toLocaleString()} LC**`,
-            color: THEME.celestial,
-            footer: { text: '🔥 Lucifer\'s Economy | Lord of Hell' }
-        })] });
+        const detail = `💳 Wallet: ${eco.wallet.toLocaleString()} LC\n🏦 Bank: ${eco.bank.toLocaleString()} LC`;
+        try {
+            const imageBuffer = await buildReceiptCard(message.member, 'Infernal Bank', `🏦 +${amount.toLocaleString()} LC`, detail, true);
+            return message.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'deposit.png' })] });
+        } catch { return message.reply({ embeds: [createEmbed({ context: message, description: `✅ Deposited **${amount.toLocaleString()} LC**.`, color: THEME.celestial })] }); }
     },
 
     async interact(interaction, client) {
@@ -38,18 +49,28 @@ module.exports = {
         const eco = getUserEconomy(interaction.guild.id, interaction.user.id);
         const amount = input.toLowerCase() === 'max' || input.toLowerCase() === 'all' ? eco.wallet : parseInt(input);
 
-        if (isNaN(amount) || amount <= 0) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid amount.', color: THEME.error })], flags: 64 });
-        if (eco.wallet < amount) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ You don\'t have that much in your wallet!', color: THEME.error })], flags: 64 });
+        if (isNaN(amount) || amount <= 0) {
+            try {
+                const imageBuffer = await buildReceiptCard(interaction.member, 'Infernal Bank', 'ERROR', 'Invalid amount provided.', false);
+                return interaction.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'deposit.png' })], flags: 64 });
+            } catch { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Invalid amount.', color: THEME.error })], flags: 64 }); }
+        }
+
+        if (eco.wallet < amount) {
+            try {
+                const imageBuffer = await buildReceiptCard(interaction.member, 'Infernal Bank', 'INSUFFICIENT', 'You don\'t have that much in your wallet!', false);
+                return interaction.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'deposit.png' })], flags: 64 });
+            } catch { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Not enough LC in wallet!', color: THEME.error })], flags: 64 }); }
+        }
 
         eco.wallet -= amount;
         eco.bank += amount;
         updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
 
-        return interaction.reply({ embeds: [createEmbed({
-            title: '🏦 The Infernal Bank',
-            description: `✅ **Transaction Approved!**\n\n➡️ Deposited: **${amount.toLocaleString()} LC**\n💳 Wallet Balance: **${eco.wallet.toLocaleString()} LC**\n🏦 Bank Balance: **${eco.bank.toLocaleString()} LC**`,
-            color: THEME.celestial,
-            footer: { text: '🔥 Lucifer\'s Economy | Lord of Hell' }
-        })] });
+        const detail = `💳 Wallet: ${eco.wallet.toLocaleString()} LC\n🏦 Bank: ${eco.bank.toLocaleString()} LC`;
+        try {
+            const imageBuffer = await buildReceiptCard(interaction.member, 'Infernal Bank', `🏦 +${amount.toLocaleString()} LC`, detail, true);
+            return interaction.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'deposit.png' })] });
+        } catch { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: `✅ Deposited **${amount.toLocaleString()} LC**.`, color: THEME.celestial })] }); }
     }
 };

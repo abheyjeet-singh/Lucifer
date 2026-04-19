@@ -19,6 +19,14 @@ db.exec(`
         mute_role_id TEXT,
         data TEXT DEFAULT '{}'
     );
+    CREATE TABLE IF NOT EXISTS ships (
+        guild_id TEXT,
+        user_id1 TEXT,
+        user_id2 TEXT,
+        percentage INTEGER,
+        timestamp INTEGER,
+        PRIMARY KEY (guild_id, user_id1, user_id2)
+    );
     CREATE TABLE IF NOT EXISTS inventory (
         key TEXT,
         item_id TEXT,
@@ -84,7 +92,41 @@ db.exec(`
         partner_id TEXT NOT NULL,
         timestamp INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS badges (
+        guild_id TEXT,
+        user_id TEXT,
+        badge_id TEXT,
+        timestamp INTEGER,
+        PRIMARY KEY (guild_id, user_id, badge_id)
+    );
+    CREATE TABLE IF NOT EXISTS invite_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        host_id TEXT NOT NULL,
+        prize TEXT NOT NULL,
+        winner_count INTEGER DEFAULT 1,
+        start_time INTEGER NOT NULL,
+        end_time INTEGER NOT NULL,
+        invite_snapshot TEXT DEFAULT '{}',
+        status TEXT DEFAULT 'active'
+    );
+    CREATE TABLE IF NOT EXISTS invite_event_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        invites INTEGER DEFAULT 0,
+        UNIQUE(event_id, user_id)
+    );
 `);
+
+// ── Migrations: Add Streak Columns if they don't exist ──
+try { db.exec('ALTER TABLE economy ADD COLUMN daily_streak INTEGER DEFAULT 0'); } catch {}
+try { db.exec('ALTER TABLE economy ADD COLUMN work_streak INTEGER DEFAULT 0'); } catch {}
+try { db.exec('ALTER TABLE economy ADD COLUMN profile_bg TEXT DEFAULT NULL'); } catch {}
+try { db.exec('ALTER TABLE economy ADD COLUMN profile_badge TEXT DEFAULT NULL'); } catch {}
+try { db.exec('ALTER TABLE invite_events ADD COLUMN image_url TEXT DEFAULT NULL'); } catch {}
 
 // ════════════════════════════════════════
 // ── ONE-TIME JSON MIGRATION ──
@@ -331,14 +373,14 @@ function getUserEconomy(guildId, userId) {
     }
     return row;
 }
+function getEconomyLeaderboard(guildId, limit = 10, offset = 0) {
+    const rows = db.prepare(`SELECT key, (wallet + bank) as netWorth FROM economy WHERE key LIKE ? ORDER BY netWorth DESC LIMIT ? OFFSET ?`).all(`${guildId}-%`, limit, offset);
+    return rows.map(r => ({ userId: r.key.split('-')[1], netWorth: r.netWorth }));
+}
 function updateUserEconomy(guildId, userId, data) {
     const key = `${guildId}-${userId}`;
-    db.prepare(`INSERT OR REPLACE INTO economy (key, wallet, bank, last_daily, last_work, last_rob, last_crime) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-        .run(key, data.wallet, data.bank, data.last_daily, data.last_work, data.last_rob, data.last_crime);
-}
-function getEconomyLeaderboard(guildId, limit = 5) {
-    const rows = db.prepare(`SELECT key, (wallet + bank) as netWorth FROM economy WHERE key LIKE ? ORDER BY netWorth DESC LIMIT ?`).all(`${guildId}-%`, limit);
-    return rows.map(r => ({ userId: r.key.split('-')[1], netWorth: r.netWorth }));
+    db.prepare(`INSERT OR REPLACE INTO economy (key, wallet, bank, last_daily, last_work, last_rob, last_crime, daily_streak, work_streak, profile_bg, profile_badge) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(key, data.wallet, data.bank, data.last_daily, data.last_work, data.last_rob, data.last_crime, data.daily_streak || 0, data.work_streak || 0, data.profile_bg || null, data.profile_badge || null);
 }
 
 // AI Mode
@@ -385,6 +427,7 @@ function divorceUsers(userId1, userId2) {
     });
     transaction();
 }
+
 // Timezones
 function getTimezone(userId) {
     const row = db.prepare('SELECT * FROM timezones WHERE user_id = ?').get(userId);
@@ -419,6 +462,113 @@ function getInventory(guildId, userId) {
     return db.prepare('SELECT * FROM inventory WHERE key = ?').all(key);
 }
 
+// ── SHIPS ──
+function normalizeIds(id1, id2) {
+    return id1 < id2 ? [id1, id2] : [id2, id1];
+}
+
+function addShip(guildId, userId1, userId2, percentage) {
+    const [id1, id2] = normalizeIds(userId1, userId2);
+    db.prepare('INSERT OR REPLACE INTO ships (guild_id, user_id1, user_id2, percentage, timestamp) VALUES (?, ?, ?, ?, ?)')
+        .run(guildId, id1, id2, percentage, Date.now());
+}
+
+function getShip(guildId, userId1, userId2) {
+    const [id1, id2] = normalizeIds(userId1, userId2);
+    return db.prepare('SELECT * FROM ships WHERE guild_id = ? AND user_id1 = ? AND user_id2 = ?').get(guildId, id1, id2);
+}
+
+function getAllShips(guildId) {
+    return db.prepare('SELECT * FROM ships WHERE guild_id = ? ORDER BY percentage DESC').all(guildId);
+}
+
+function updateShipPercentage(guildId, userId1, userId2, percentage) {
+    const [id1, id2] = normalizeIds(userId1, userId2);
+    db.prepare('UPDATE ships SET percentage = ? WHERE guild_id = ? AND user_id1 = ? AND user_id2 = ?')
+        .run(percentage, guildId, id1, id2);
+}
+
+function removeShip(guildId, userId1, userId2) {
+    const [id1, id2] = normalizeIds(userId1, userId2);
+    db.prepare('DELETE FROM ships WHERE guild_id = ? AND user_id1 = ? AND user_id2 = ?')
+        .run(guildId, id1, id2);
+}
+
+// ── BADGES ──
+function addBadge(guildId, userId, badgeId) { 
+    db.prepare('INSERT OR IGNORE INTO badges (guild_id, user_id, badge_id, timestamp) VALUES (?, ?, ?, ?)')
+        .run(guildId, userId, badgeId, Date.now()); 
+}
+function removeBadge(guildId, userId, badgeId) { 
+    db.prepare('DELETE FROM badges WHERE guild_id = ? AND user_id = ? AND badge_id = ?').run(guildId, userId, badgeId); 
+}
+function getUserBadges(guildId, userId) { 
+    return db.prepare('SELECT * FROM badges WHERE guild_id = ? AND user_id = ?').all(guildId, userId); 
+}
+function getBadgeLeaderboard(guildId, limit = 10) {
+    return db.prepare('SELECT user_id, COUNT(*) as badge_count FROM badges WHERE guild_id = ? GROUP BY user_id ORDER BY badge_count DESC LIMIT ?').all(guildId, limit);
+}
+function hasBadge(guildId, userId, badgeId) {
+    return db.prepare('SELECT 1 FROM badges WHERE guild_id = ? AND user_id = ? AND badge_id = ?').get(guildId, userId, badgeId);
+}
+// ── INVITE EVENTS ──
+function addInviteEvent(data) {
+    const info = db.prepare(`
+        INSERT INTO invite_events (guild_id, channel_id, message_id, host_id, prize, winner_count, start_time, end_time, invite_snapshot, image_url, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+    `).run(data.guild_id, data.channel_id, data.message_id, data.host_id, data.prize, data.winner_count, data.start_time, data.end_time, data.invite_snapshot, data.image_url || null);
+    return info.lastInsertRowid;
+}
+
+function removeInviteEvent(id) {
+    db.prepare('DELETE FROM invite_event_entries WHERE event_id = ?').run(id);
+    db.prepare('DELETE FROM invite_events WHERE id = ?').run(id);
+}
+
+function getActiveInviteEvents() {
+    return db.prepare('SELECT * FROM invite_events WHERE status = ?').all('active');
+}
+
+function getInviteEventById(id) {
+    return db.prepare('SELECT * FROM invite_events WHERE id = ?').get(id);
+}
+
+function getActiveInviteEventsByGuild(guildId) {
+    return db.prepare('SELECT * FROM invite_events WHERE guild_id = ? AND status = ?').all(guildId, 'active');
+}
+
+function setInviteEventEnded(id) {
+    db.prepare('UPDATE invite_events SET status = ? WHERE id = ?').run('ended', id);
+}
+
+function incrementInviteEventEntry(eventId, userId, count) {
+    const existing = db.prepare('SELECT * FROM invite_event_entries WHERE event_id = ? AND user_id = ?').get(eventId, userId);
+    if (existing) {
+        db.prepare('UPDATE invite_event_entries SET invites = invites + ? WHERE event_id = ? AND user_id = ?').run(count, eventId, userId);
+    } else {
+        db.prepare('INSERT INTO invite_event_entries (event_id, user_id, invites) VALUES (?, ?, ?)').run(eventId, userId, count);
+    }
+}
+
+function getInviteEventLeaderboard(eventId, limit = 10) {
+    return db.prepare('SELECT * FROM invite_event_entries WHERE event_id = ? ORDER BY invites DESC LIMIT ?').all(eventId, limit);
+}
+
+function getInviteEventEntries(eventId) {
+    return db.prepare('SELECT * FROM invite_event_entries WHERE event_id = ? ORDER BY invites DESC').all(eventId);
+}
+
+function updateInviteEventSnapshot(id, snapshot) {
+    db.prepare('UPDATE invite_events SET invite_snapshot = ? WHERE id = ?').run(snapshot, id);
+}
+function updateInviteEventMessage(id, messageId, channelId) {
+    db.prepare('UPDATE invite_events SET message_id = ?, channel_id = ? WHERE id = ?').run(messageId, channelId, id);
+}
+// Invite Event Ping Role
+function getInviteEventPingRole(guildId) { return getGuildData(guildId).invite_event_ping_role_id || null; }
+function setInviteEventPingRole(guildId, roleId) { setGuildData(guildId, { invite_event_ping_role_id: roleId }); }
+function removeInviteEventPingRole(guildId) { setGuildData(guildId, { invite_event_ping_role_id: null }); }
+
 module.exports = {
     db, getPrefix, setPrefix, getGuildSettings, setLogChannel, removeLogChannel,
     setMuteRole, removeMuteRole, setStarboard, getStarboard, removeStarboard,
@@ -444,6 +594,11 @@ module.exports = {
     getUserEconomy, updateUserEconomy, getEconomyLeaderboard,
     addButtonRole, removeButtonRole, getButtonRoles, getMarriage, marryUsers, divorceUsers,
     getTimezone, setTimezone,
-    // ── SHOP EXPORTS (Kept so Rob Shield works) ──
-    hasItem, addItem, removeItem, getInventory
+    hasItem, addItem, removeItem, getInventory,
+    addShip, getShip, getAllShips, updateShipPercentage, removeShip,
+    addBadge, getUserBadges, getBadgeLeaderboard, hasBadge,
+    addInviteEvent, removeInviteEvent, getActiveInviteEvents, getInviteEventById,
+    getActiveInviteEventsByGuild, setInviteEventEnded, incrementInviteEventEntry,
+    getInviteEventLeaderboard, getInviteEventEntries, updateInviteEventMessage, updateInviteEventSnapshot,
+    getInviteEventPingRole, setInviteEventPingRole, removeInviteEventPingRole
 };

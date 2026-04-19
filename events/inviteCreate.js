@@ -14,5 +14,13 @@ module.exports = {
             description: `**Code:** https://discord.gg/${invite.code}\n**Channel:** ${invite.channel}\n**Created By:** ${invite.inviter} (${invite.inviter.id})\n**Max Uses:** ${maxUses}\n**Expires:** ${expiresAt}`,
             color: THEME.celestial,
         }));
+
+        // ── Invite Event: Track new invites into snapshot ──
+        try {
+            const inviteEventCmd = require('../commands/utility/inviteevent');
+            inviteEventCmd.handleInviteCreate(invite);
+        } catch (e) {
+            console.error('Invite Event inviteCreate Error:', e);
+        }
     },
 };

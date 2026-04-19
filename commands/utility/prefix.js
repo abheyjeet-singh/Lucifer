@@ -48,10 +48,10 @@ module.exports = {
     async set(client, guild, member, newPrefix, context) {
         const { hasPermission } = require('../../utils/permissions');
         if (!hasPermission(member, 'Administrator')) {
-            return context.reply({ embeds: [createEmbed({ description: '🚫 Only realm administrators may alter my summoning word.', color: THEME.error })], ephemeral: true });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only realm administrators may alter my summoning word.', color: THEME.error })], ephemeral: true });
         }
 
-        if (newPrefix.includes(' ')) return context.reply({ embeds: [createEmbed({ description: '⚠️ The prefix cannot contain spaces.', color: THEME.error })] });
+        if (newPrefix.includes(' ')) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ The prefix cannot contain spaces.', color: THEME.error })] });
 
         setPrefix(guild.id, newPrefix);
 

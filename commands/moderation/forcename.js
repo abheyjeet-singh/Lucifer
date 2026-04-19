@@ -13,13 +13,13 @@ module.exports = {
     async execute(message, args, client) {
         const target = message.mentions.members.first();
         const nickname = args.slice(1).join(' ');
-        if (!target || !nickname) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `fn @user <nickname>`', color: THEME.error })] });
+        if (!target || !nickname) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use: `fn @user <nickname>`', color: THEME.error })] });
         return this.run(client, message.guild, message.member, target, nickname, message);
     },
 
     async run(client, guild, moderator, target, nickname, context) {
-        if (target.id === guild.ownerId) return context.reply({ embeds: [createEmbed({ description: '🚫 I cannot force a name upon the ruler of this realm.', color: THEME.error })] });
-        if (!target.manageable) return context.reply({ embeds: [createEmbed({ description: '🚫 This soul is too powerful for me to rename.', color: THEME.error })] });
+        if (target.id === guild.ownerId) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 I cannot force a name upon the ruler of this realm.', color: THEME.error })] });
+        if (!target.manageable) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 This soul is too powerful for me to rename.', color: THEME.error })] });
 
         addForcedName(guild.id, target.id, nickname);
         await target.setNickname(nickname, `Forced by ${moderator.user.tag}`);

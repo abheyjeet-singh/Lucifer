@@ -16,7 +16,7 @@ module.exports = {
 
     async execute(message, args, client) {
         const target = message.mentions.users.first();
-        if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Mention a user. `l!guide @user`', color: THEME.error })] });
+        if (!target) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Mention a user. `l!guide @user`', color: THEME.error })] });
         return this.run(client, message.guild, message.author, target, message);
     },
 
@@ -28,10 +28,10 @@ module.exports = {
     async run(client, guild, author, target, context) {
         const currentUsage = getAiUsage(guild.id);
         if (currentUsage >= AI_DAILY_LIMIT) {
-            return context.reply({ embeds: [createEmbed({ description: `🔥 AI limit reached (\`${AI_DAILY_LIMIT}\`).`, color: THEME.secondary })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `🔥 AI limit reached (\`${AI_DAILY_LIMIT}\`).`, color: THEME.secondary })] });
         }
 
-        await context.reply({ embeds: [createEmbed({ description: `📜 Penning a letter to ${target.tag}...`, color: THEME.celestial })] });
+        await context.reply({ embeds: [createEmbed({ context: guild, description: `📜 Penning a letter to ${target.tag}...`, color: THEME.celestial })] });
 
         const commandList = [...client.commands.values()].map(cmd => `!${cmd.name}: ${cmd.description}`).join('\n');
 
@@ -54,7 +54,7 @@ module.exports = {
             });
 
             let letter = response.data.choices?.[0]?.message?.content?.trim();
-            if (!letter) return context.editReply({ embeds: [createEmbed({ description: '💀 The ink dried up.', color: THEME.error })] });
+            if (!letter) return context.editReply({ embeds: [createEmbed({ context: guild, description: '💀 The ink dried up.', color: THEME.error })] });
 
             const chunks = letter.match(/[\s\S]{1,1999}/g) || [];
             let dmFailed = false;
@@ -64,15 +64,15 @@ module.exports = {
             }
 
             if (dmFailed) {
-                return context.editReply({ embeds: [createEmbed({ description: `🚫 Cannot DM ${target.tag}. Their doors are locked.`, color: THEME.error })] });
+                return context.editReply({ embeds: [createEmbed({ context: guild, description: `🚫 Cannot DM ${target.tag}. Their doors are locked.`, color: THEME.error })] });
             }
 
             const newCount = incrementAiUsage(guild.id);
-            return context.editReply({ embeds: [createEmbed({ description: `✉️ The decree has been slipped under ${target}'s door.\n🔥 **AI Quota:** ${newCount}/${AI_DAILY_LIMIT}`, color: THEME.success })] });
+            return context.editReply({ embeds: [createEmbed({ context: guild, description: `✉️ The decree has been slipped under ${target}'s door.\n🔥 **AI Quota:** ${newCount}/${AI_DAILY_LIMIT}`, color: THEME.success })] });
 
         } catch (error) {
             console.error('Groq guide Error:', error.response?.data || error.message);
-            return context.editReply({ embeds: [createEmbed({ description: '💀 The cosmic scribe is asleep. Try again shortly.', color: THEME.error })] });
+            return context.editReply({ embeds: [createEmbed({ context: guild, description: '💀 The cosmic scribe is asleep. Try again shortly.', color: THEME.error })] });
         }
     },
 };

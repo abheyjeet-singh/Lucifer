@@ -10,7 +10,7 @@ module.exports = {
         .setDescription('Unlocks all channels after a panic mode lockdown.'),
 
     async execute(message, args, client) {
-        const msg = await message.reply({ embeds: [createEmbed({ description: '🔓 **DEACTIVATING PANIC MODE...** Restoring channel access.', color: THEME.accent })] });
+        const msg = await message.reply({ embeds: [createEmbed({ context: message, description: '🔓 **DEACTIVATING PANIC MODE...** Restoring channel access.', color: THEME.accent })] });
         
         const channels = message.guild.channels.cache.filter(c => c.isTextBased());
         for (const [id, channel] of channels) {
@@ -18,17 +18,17 @@ module.exports = {
             await channel.permissionOverwrites.edit(message.guild.id, { SendMessages: null }, { reason: 'UNPANIC MODE - Lockdown lifted' }).catch(() => {});
         }
         
-        await msg.edit({ embeds: [createEmbed({ description: '✅ **PANIC MODE DEACTIVATED.** All channels have been unlocked. Breathe easy.', color: THEME.success })] });
+        await msg.edit({ embeds: [createEmbed({ context: guild, description: '✅ **PANIC MODE DEACTIVATED.** All channels have been unlocked. Breathe easy.', color: THEME.success })] });
     },
 
     async interact(interaction, client) {
-        await interaction.reply({ embeds: [createEmbed({ description: '🔓 **DEACTIVATING PANIC MODE...**', color: THEME.accent })] });
+        await interaction.reply({ embeds: [createEmbed({ context: interaction, description: '🔓 **DEACTIVATING PANIC MODE...**', color: THEME.accent })] });
         
         const channels = interaction.guild.channels.cache.filter(c => c.isTextBased());
         for (const [id, channel] of channels) {
             await channel.permissionOverwrites.edit(interaction.guild.id, { SendMessages: null }, { reason: 'UNPANIC MODE - Lockdown lifted' }).catch(() => {});
         }
         
-        await interaction.editReply({ embeds: [createEmbed({ description: '✅ **PANIC MODE DEACTIVATED.** All channels have been unlocked.', color: THEME.success })] });
+        await interaction.editReply({ embeds: [createEmbed({ context: guild, description: '✅ **PANIC MODE DEACTIVATED.** All channels have been unlocked.', color: THEME.success })] });
     }
 };

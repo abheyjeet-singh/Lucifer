@@ -63,7 +63,7 @@ module.exports = {
         // Handle l!tzset <timezone>
         if (usedAlias === 'tzset') {
             const tzInput = args.join(' ');
-            if (!tzInput) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!tzset <timezone>`', color: THEME.error })] });
+            if (!tzInput) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!tzset <timezone>`', color: THEME.error })] });
             return this.setTime(client, message.guild, message.author, tzInput, message);
         }
 
@@ -78,7 +78,7 @@ module.exports = {
         // Handle l!tz set <timezone>
         if (sub === 'set') {
             const tzInput = args.slice(1).join(' ');
-            if (!tzInput) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!tz set <timezone>`', color: THEME.error })] });
+            if (!tzInput) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!tz set <timezone>`', color: THEME.error })] });
             return this.setTime(client, message.guild, message.author, tzInput, message);
         }
 
@@ -161,9 +161,9 @@ module.exports = {
             collector.on('collect', async i => {
                 if (i.customId === 'tz_accept') {
                     setTimezone(author.id, mappedTz);
-                    await i.update({ embeds: [createEmbed({ title: '✅ Saved!', description: `Your timezone is now **${mappedTz}**.`, color: THEME.success })], components: [] });
+                    await i.update({ embeds: [createEmbed({ context: guild, title: '✅ Saved!', description: `Your timezone is now **${mappedTz}**.`, color: THEME.success })], components: [] });
                 } else {
-                    await i.update({ embeds: [createEmbed({ description: `🗑️ Timezone not saved. Please try again with a specific city (e.g., \`America/New_York\`).`, color: THEME.accent })], components: [] });
+                    await i.update({ embeds: [createEmbed({ context: guild, description: `🗑️ Timezone not saved. Please try again with a specific city (e.g., \`America/New_York\`).`, color: THEME.accent })], components: [] });
                 }
             });
 
@@ -190,7 +190,7 @@ module.exports = {
             const desc = user.id === author.id 
                 ? '⚠️ You haven\'t set your timezone yet! Use `/tz set <timezone>` or `l!tzset <timezone>` to set it.' 
                 : `⚠️ **${user.username}** hasn't set their timezone yet.`;
-            return context.reply({ embeds: [createEmbed({ description: desc, color: THEME.accent })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: desc, color: THEME.accent })] });
         }
 
         const currentTime = getCurrentTime(tz);

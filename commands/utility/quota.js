@@ -42,7 +42,7 @@ module.exports = {
     async showReloadButton(client, guild, member, context) {
         // Check if user is Admin (Double check for prefix command)
         if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
-            return context.reply({ embeds: [createEmbed({ description: '🚫 Only realm administrators may reset the cosmic limits.', color: THEME.error })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only realm administrators may reset the cosmic limits.', color: THEME.error })] });
         }
 
         const row = new ActionRowBuilder().addComponents(

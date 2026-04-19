@@ -73,7 +73,7 @@ module.exports = {
         }
 
         if (logTitle) {
-            await modLog(client, guild, createEmbed({ title: logTitle, description: logDesc, color: logColor }));
+            await modLog(client, guild, createEmbed({ context: guild, title: logTitle, description: logDesc, color: logColor }));
         }
 
         // ── Mod Actions: Premium Canvas Logs ──

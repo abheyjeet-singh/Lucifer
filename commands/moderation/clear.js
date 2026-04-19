@@ -18,7 +18,7 @@ module.exports = {
 
     async execute(message, args, client) {
         const amount = parseInt(args[0]);
-        if (isNaN(amount) || amount < 1 || amount > 100) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide a number between 1-100.', color: THEME.error })] });
+        if (isNaN(amount) || amount < 1 || amount > 100) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide a number between 1-100.', color: THEME.error })] });
         // Delete the command message first so it doesn't cause issues
         await message.delete().catch(() => {});
         return this.run(client, message.guild, message.channel, message.member, amount, null, message, false);
@@ -42,9 +42,9 @@ module.exports = {
 
         if (!toDelete || toDelete.length === 0) {
             if (isInteraction) {
-                return context.reply({ embeds: [createEmbed({ description: '⚠️ No messages found to purge.', color: THEME.error })], flags: 64 });
+                return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ No messages found to purge.', color: THEME.error })], flags: 64 });
             } else {
-                return channel.send({ embeds: [createEmbed({ description: '⚠️ No messages found to purge.', color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
+                return channel.send({ embeds: [createEmbed({ context: guild, description: '⚠️ No messages found to purge.', color: THEME.error })] }).then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
             }
         }
 
@@ -90,7 +90,7 @@ module.exports = {
         }
 
         // Use channel.send instead of context.reply — original message may be deleted
-        const reply = await channel.send({ embeds: [createEmbed({ description: `🧹 **${count}** message(s) have been purged from existence.`, color: THEME.success })] });
+        const reply = await channel.send({ embeds: [createEmbed({ context: guild, description: `🧹 **${count}** message(s) have been purged from existence.`, color: THEME.success })] });
         setTimeout(() => reply.deletable ? reply.delete().catch(() => {}) : null, 5000);
     },
 };

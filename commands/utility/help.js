@@ -29,7 +29,7 @@ module.exports = {
         // ── SPECIFIC COMMAND QUERY ──
         if (cmdName) {
             const cmd = client.commands.get(cmdName);
-            if (!cmd) return context.reply({ embeds: [createEmbed({ description: '⚠️ That command does not exist in my grimoire.', color: THEME.error })] });
+            if (!cmd) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ That command does not exist in my grimoire.', color: THEME.error })] });
 
             return context.reply({ embeds: [createEmbed({
                 title: `📖 ${cmd.name}`,

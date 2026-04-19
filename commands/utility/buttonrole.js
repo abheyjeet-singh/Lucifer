@@ -69,7 +69,7 @@ module.exports = {
         const title = interaction.options.getString('title');
         
         if (!channel.isTextBased()) {
-            return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Please select a text channel.', color: THEME.error })], flags: 64 });
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Please select a text channel.', color: THEME.error })], flags: 64 });
         }
 
         const rows = [];
@@ -82,10 +82,10 @@ module.exports = {
             
             if (role && label) {
                 if (role.id === interaction.guild.id) {
-                    return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Cannot use @everyone.', color: THEME.error })], flags: 64 });
+                    return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Cannot use @everyone.', color: THEME.error })], flags: 64 });
                 }
                 if (role.position >= botMember.roles.highest.position) {
-                    return interaction.reply({ embeds: [createEmbed({ description: `⚠️ I cannot manage **${role.name}** because it is above my highest role.`, color: THEME.error })], flags: 64 });
+                    return interaction.reply({ embeds: [createEmbed({ context: interaction, description: `⚠️ I cannot manage **${role.name}** because it is above my highest role.`, color: THEME.error })], flags: 64 });
                 }
 
                 const customId = `br_${role.id}`;
@@ -119,10 +119,10 @@ module.exports = {
                 }
             }
 
-            return interaction.reply({ embeds: [createEmbed({ description: `✅ Button role message created in ${channel}!`, color: THEME.success })], flags: 64 });
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: `✅ Button role message created in ${channel}!`, color: THEME.success })], flags: 64 });
         } catch (error) {
             console.error(error);
-            return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Failed to send message. Check my permissions in that channel.', color: THEME.error })], flags: 64 });
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Failed to send message. Check my permissions in that channel.', color: THEME.error })], flags: 64 });
         }
     }
 };

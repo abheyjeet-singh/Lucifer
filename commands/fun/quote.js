@@ -74,7 +74,7 @@ module.exports = {
 
         const referencedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
         if (!referencedMsg) {
-            return message.reply({ embeds: [createEmbed({ description: '⚠️ Could not find that message.', color: THEME.error })] });
+            return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Could not find that message.', color: THEME.error })] });
         }
 
         return this.createAndSend(client, message, referencedMsg, style);

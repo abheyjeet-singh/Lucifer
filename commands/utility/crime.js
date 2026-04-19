@@ -1,9 +1,10 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
-const { getUserEconomy, updateUserEconomy, hasItem } = require('../../database/db'); // Added hasItem
+const { getUserEconomy, updateUserEconomy, hasItem } = require('../../database/db');
+const { buildReceiptCard } = require('../../utils/canvasBuilder');
 
-const CRIME_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-const SUCCESS_CHANCE = 0.50; // 50% chance to win
+const CRIME_COOLDOWN_MS = 60 * 60 * 1000; 
+const SUCCESS_CHANCE = 0.50; 
 const MIN_WIN = 500;
 const MAX_WIN = 1500;
 const MIN_FINE = 250;
@@ -29,12 +30,11 @@ module.exports = {
         const timeLeft = eco.last_crime + CRIME_COOLDOWN_MS - now;
 
         if (timeLeft > 0) {
-            const timeLeftStr = `<t:${Math.floor((eco.last_crime + CRIME_COOLDOWN_MS) / 1000)}:R>`;
-            return message.reply({ embeds: [createEmbed({ 
-                title: '🚨 Demonic Crime',
-                description: `⏳ You're laying low from your last heist!\nTry again ${timeLeftStr}.`, 
-                color: THEME.accent
-            })] });
+            const detail = `Laying low from last heist. Try again <t:${Math.floor((eco.last_crime + CRIME_COOLDOWN_MS) / 1000)}:R>.`;
+            try {
+                const imageBuffer = await buildReceiptCard(message.member, 'Demonic Crime', 'COOLDOWN', detail, false);
+                return message.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'crime.png' })] });
+            } catch { return message.reply({ embeds: [createEmbed({ context: message, description: detail, color: THEME.accent })] }); }
         }
 
         const crime = CRIMES[Math.floor(Math.random() * CRIMES.length)];
@@ -43,35 +43,27 @@ module.exports = {
 
         if (success) {
             let winnings = Math.floor(Math.random() * (MAX_WIN - MIN_WIN + 1)) + MIN_WIN;
-
-            // ── Check for Lucky Charm Buff ──
-            let charmActive = false;
-            if (hasItem(message.guild.id, message.author.id, 'lucky_charm')) {
-                winnings *= 2; // Double the loot!
-                charmActive = true;
-            }
+            let charmActive = hasItem(message.guild.id, message.author.id, 'lucky_charm');
+            if (charmActive) winnings *= 2; 
 
             eco.wallet += winnings;
             updateUserEconomy(message.guild.id, message.author.id, eco);
 
-            let description = `🤫 **You ${crime}!**\n\n💰 **Loot:** ${winnings.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`;
-            if (charmActive) description += `\n🍀 **Lucky Charm active! Loot doubled!**`;
-
-            return message.reply({ embeds: [createEmbed({ 
-                title: '🚨 Demonic Crime',
-                description: description, 
-                color: THEME.success
-            })] });
+            const detail = `You ${crime}!${charmActive ? ' 🍀 Lucky Charm doubled loot!' : ''} 💳 Wallet: ${eco.wallet.toLocaleString()} LC`;
+            try {
+                const imageBuffer = await buildReceiptCard(message.member, 'Demonic Crime', `+${winnings.toLocaleString()} LC`, detail, true);
+                return message.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'crime.png' })] });
+            } catch { return message.reply({ embeds: [createEmbed({ context: message, description: detail, color: THEME.success })] }); }
         } else {
             const fine = Math.floor(Math.random() * (MAX_FINE - MIN_FINE + 1)) + MIN_FINE;
-            eco.wallet = Math.max(0, eco.wallet - fine); // Can't go below 0
+            eco.wallet = Math.max(0, eco.wallet - fine);
             updateUserEconomy(message.guild.id, message.author.id, eco);
 
-            return message.reply({ embeds: [createEmbed({ 
-                title: '🚨 Demonic Crime',
-                description: `🚔 **You got caught trying to ${crime}!**\n\n💸 **Fine Paid:** ${fine.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
-                color: THEME.error
-            })] });
+            const detail = `Caught trying to ${crime}! 💳 Wallet: ${eco.wallet.toLocaleString()} LC`;
+            try {
+                const imageBuffer = await buildReceiptCard(message.member, 'Demonic Crime', `-${fine.toLocaleString()} LC`, detail, false);
+                return message.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'crime.png' })] });
+            } catch { return message.reply({ embeds: [createEmbed({ context: message, description: detail, color: THEME.error })] }); }
         }
     },
 
@@ -81,12 +73,11 @@ module.exports = {
         const timeLeft = eco.last_crime + CRIME_COOLDOWN_MS - now;
 
         if (timeLeft > 0) {
-            const timeLeftStr = `<t:${Math.floor((eco.last_crime + CRIME_COOLDOWN_MS) / 1000)}:R>`;
-            return interaction.reply({ embeds: [createEmbed({ 
-                title: '🚨 Demonic Crime',
-                description: `⏳ You're laying low from your last heist!\nTry again ${timeLeftStr}.`, 
-                color: THEME.accent
-            })], flags: 64 });
+            const detail = `Laying low from last heist. Try again <t:${Math.floor((eco.last_crime + CRIME_COOLDOWN_MS) / 1000)}:R>.`;
+            try {
+                const imageBuffer = await buildReceiptCard(interaction.member, 'Demonic Crime', 'COOLDOWN', detail, false);
+                return interaction.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'crime.png' })], flags: 64 });
+            } catch { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: detail, color: THEME.accent })], flags: 64 }); }
         }
 
         const crime = CRIMES[Math.floor(Math.random() * CRIMES.length)];
@@ -95,35 +86,27 @@ module.exports = {
 
         if (success) {
             let winnings = Math.floor(Math.random() * (MAX_WIN - MIN_WIN + 1)) + MIN_WIN;
-
-            // ── Check for Lucky Charm Buff ──
-            let charmActive = false;
-            if (hasItem(interaction.guild.id, interaction.user.id, 'lucky_charm')) {
-                winnings *= 2; // Double the loot!
-                charmActive = true;
-            }
+            let charmActive = hasItem(interaction.guild.id, interaction.user.id, 'lucky_charm');
+            if (charmActive) winnings *= 2; 
 
             eco.wallet += winnings;
             updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
 
-            let description = `🤫 **You ${crime}!**\n\n💰 **Loot:** ${winnings.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`;
-            if (charmActive) description += `\n🍀 **Lucky Charm active! Loot doubled!**`;
-
-            return interaction.reply({ embeds: [createEmbed({ 
-                title: '🚨 Demonic Crime',
-                description: description, 
-                color: THEME.success
-            })] });
+            const detail = `You ${crime}!${charmActive ? ' 🍀 Lucky Charm doubled loot!' : ''} 💳 Wallet: ${eco.wallet.toLocaleString()} LC`;
+            try {
+                const imageBuffer = await buildReceiptCard(interaction.member, 'Demonic Crime', `+${winnings.toLocaleString()} LC`, detail, true);
+                return interaction.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'crime.png' })] });
+            } catch { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: detail, color: THEME.success })] }); }
         } else {
             const fine = Math.floor(Math.random() * (MAX_FINE - MIN_FINE + 1)) + MIN_FINE;
             eco.wallet = Math.max(0, eco.wallet - fine);
             updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
 
-            return interaction.reply({ embeds: [createEmbed({ 
-                title: '🚨 Demonic Crime',
-                description: `🚔 **You got caught trying to ${crime}!**\n\n💸 **Fine Paid:** ${fine.toLocaleString()} LC\n💳 **Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
-                color: THEME.error
-            })] });
+            const detail = `Caught trying to ${crime}! 💳 Wallet: ${eco.wallet.toLocaleString()} LC`;
+            try {
+                const imageBuffer = await buildReceiptCard(interaction.member, 'Demonic Crime', `-${fine.toLocaleString()} LC`, detail, false);
+                return interaction.reply({ files: [new AttachmentBuilder(imageBuffer, { name: 'crime.png' })] });
+            } catch { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: detail, color: THEME.error })] }); }
         }
     }
 };

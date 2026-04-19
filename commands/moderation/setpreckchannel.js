@@ -42,24 +42,24 @@ module.exports = {
         if (!channel) {
             const current = getBoostPerksChannel(guild.id);
             if (!current) {
-                const payload = { embeds: [createEmbed({ description: '🔥 Booster perks channel is already disabled.', color: THEME.error })] };
+                const payload = { embeds: [createEmbed({ context: guild, description: '🔥 Booster perks channel is already disabled.', color: THEME.error })] };
                 return isInteraction ? source.reply(payload) : source.reply(payload);
             }
             
             removeBoostPerksChannel(guild.id);
-            const payload = { embeds: [createEmbed({ description: '🔥 Booster perks channel has been disabled.', color: THEME.success })] };
+            const payload = { embeds: [createEmbed({ context: guild, description: '🔥 Booster perks channel has been disabled.', color: THEME.success })] };
             return isInteraction ? source.reply(payload) : source.reply(payload);
         }
 
         // ── VALIDATE CHANNEL ──
         if (!channel.isTextBased()) {
-            const payload = { embeds: [createEmbed({ description: '🚫 Please mention a valid text channel.', color: THEME.error })], ephemeral: true };
+            const payload = { embeds: [createEmbed({ context: guild, description: '🚫 Please mention a valid text channel.', color: THEME.error })], ephemeral: true };
             return isInteraction ? source.reply(payload) : source.reply(payload);
         }
 
         setBoostPerksChannel(guild.id, channel.id);
         
-        const statusPayload = { embeds: [createEmbed({ description: `🔥 Booster perks channel set to ${channel}. Scanning existing boosters...`, color: THEME.primary })] };
+        const statusPayload = { embeds: [createEmbed({ context: guild, description: `🔥 Booster perks channel set to ${channel}. Scanning existing boosters...`, color: THEME.primary })] };
         const statusMsg = isInteraction 
             ? await source.reply({ ...statusPayload, fetchReply: true }) 
             : await source.reply(statusPayload);
@@ -95,7 +95,7 @@ module.exports = {
         }
 
         // ── EDIT FINAL STATUS ──
-        const finalPayload = { embeds: [createEmbed({ description: `🔥 Booster perks channel set to ${channel}.\n👑 Scanned server and sent **${dmCount}** new DM(s) and **${pingCount}** fallback ping(s) to existing boosters.`, color: THEME.success })] };
+        const finalPayload = { embeds: [createEmbed({ context: guild, description: `🔥 Booster perks channel set to ${channel}.\n👑 Scanned server and sent **${dmCount}** new DM(s) and **${pingCount}** fallback ping(s) to existing boosters.`, color: THEME.success })] };
         
         if (isInteraction) {
             await source.editReply(finalPayload);

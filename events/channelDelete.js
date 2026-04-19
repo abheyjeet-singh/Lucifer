@@ -22,10 +22,10 @@ module.exports = {
 
         try {
             const imageBuffer = await buildModLogCard(
-                null, // No avatar for channel events
-                '#9b59b6', // Purple accent
-                'CHANNEL DELETED', 
-                [`Channel: #${channel.name} (${channel.id})`, `Type: ${channel.type}`, `Moderator: ${moderatorTag}`]
+                channel.guild.iconURL({ extension: 'png' }), // Server logo as banner
+                '#e74c3c', 
+                'REALM ALTERED', 
+                [`Channel: #${channel.name} (${channel.id})`, `Type: ${channel.type}`, `Destroyer: ${moderatorTag}`]
             );
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'channel_delete.png' });
             await logChannel.send({ files: [attachment] });

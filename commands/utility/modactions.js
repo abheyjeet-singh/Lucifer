@@ -24,7 +24,7 @@ module.exports = {
     },
 
     async run(client, guild, target, context) {
-        await context.reply({ embeds: [createEmbed({ description: '📜 Scrolling through the executioner\'s ledger...', color: THEME.celestial })] });
+        await context.reply({ embeds: [createEmbed({ context: guild, description: '📜 Scrolling through the executioner\'s ledger...', color: THEME.celestial })] });
 
         // 1. Fetch Warnings issued by this mod from our Database
         const allWarnings = getAllWarnings(guild.id);

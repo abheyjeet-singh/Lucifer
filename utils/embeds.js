@@ -11,9 +11,7 @@ const THEME = {
     celestial: '#4B0082',
 };
 
-const LUCIFER_FOOTER = '🔥 Lucifer Morningstar | Lord of Hell';
-
-function createEmbed({ title, description, color, thumbnail, image, fields, author }) {
+function createEmbed({ title, description, color, thumbnail, image, fields, author, context }) {
     const embed = new EmbedBuilder().setColor(color || THEME.primary);
 
     if (title) embed.setTitle(title);
@@ -23,7 +21,22 @@ function createEmbed({ title, description, color, thumbnail, image, fields, auth
     if (fields && fields.length) embed.addFields(fields);
     if (author) embed.setAuthor(author);
 
-    embed.setFooter({ text: LUCIFER_FOOTER }).setTimestamp();
+    // ── Smart Dynamic Footer Logic ──
+    let guild = null;
+    if (context) {
+        if (context.guild) guild = context.guild; // Handles Message & Interaction
+        else if (context.name && context.id) guild = context; // Handles raw Guild object
+    }
+
+    let footerText;
+    if (guild) {
+        const botName = guild.members?.me?.displayName || 'Lucifer';
+        footerText = `🔥 ${botName} • ${guild.name}`;
+    } else {
+        footerText = `🔥 Lucifer Morningstar`;
+    }
+
+    embed.setFooter({ text: footerText }).setTimestamp();
     return embed;
 }
 
@@ -33,16 +46,22 @@ async function modLog(client, guild, data) {
     const channel = guild.channels.cache.get(settings.log_channel_id);
     if (!channel) return;
 
+    const botName = guild.members?.me?.displayName || 'Lucifer';
+    const dynamicFooter = `🔥 ${botName} • ${guild.name}`;
+
     const payload = {};
-    // Support passing an object with { embed, files } OR just an embed directly
     if (data instanceof EmbedBuilder) {
+        data.setFooter({ text: dynamicFooter });
         payload.embeds = [data];
     } else {
-        if (data.embed) payload.embeds = [data.embed];
+        if (data.embed) {
+            data.embed.setFooter({ text: dynamicFooter });
+            payload.embeds = [data.embed];
+        }
         if (data.files) payload.files = data.files;
     }
 
     try { await channel.send(payload); } catch {}
 }
 
-module.exports = { THEME, LUCIFER_FOOTER, createEmbed, modLog };
+module.exports = { THEME, createEmbed, modLog };

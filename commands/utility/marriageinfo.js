@@ -23,14 +23,14 @@ module.exports = {
 
     async sendCard(client, guild, target, context) {
         const marriage = getMarriage(target.id);
-        if (!marriage) return context.reply({ embeds: [createEmbed({ description: '💔 That soul is not married.', color: THEME.error })] });
+        if (!marriage) return context.reply({ embeds: [createEmbed({ context: guild, description: '💔 That soul is not married.', color: THEME.error })] });
 
         const partner = await client.users.fetch(marriage.partner_id).catch(() => null);
-        if (!partner) return context.reply({ embeds: [createEmbed({ description: '❌ Could not find partner.', color: THEME.error })] });
+        if (!partner) return context.reply({ embeds: [createEmbed({ context: guild, description: '❌ Could not find partner.', color: THEME.error })] });
 
         const member1 = await guild.members.fetch(target.id).catch(() => null);
         const member2 = await guild.members.fetch(partner.id).catch(() => null);
-        if (!member1 || !member2) return context.reply({ embeds: [createEmbed({ description: '❌ Members not found.', color: THEME.error })] });
+        if (!member1 || !member2) return context.reply({ embeds: [createEmbed({ context: guild, description: '❌ Members not found.', color: THEME.error })] });
 
         try {
             const imageBuffer = await buildMarriageCard(member1, member2, marriage.timestamp);
@@ -38,7 +38,7 @@ module.exports = {
             return context.reply({ files: [attachment] });
         } catch (e) {
             console.error(e);
-            return context.reply({ embeds: [createEmbed({ description: `💍 **${target.username}** is married to **${partner.username}**!`, color: THEME.primary })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `💍 **${target.username}** is married to **${partner.username}**!`, color: THEME.primary })] });
         }
     }
 };

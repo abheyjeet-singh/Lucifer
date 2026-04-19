@@ -22,7 +22,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
         
     async execute(message, args, client) { 
-        return message.reply({ embeds: [createEmbed({ description: '⚠️ Use `/unset` slash commands.', color: THEME.error })] }); 
+        return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use `/unset` slash commands.', color: THEME.error })] }); 
     },
     
     async interact(interaction, client) {
@@ -31,27 +31,27 @@ module.exports = {
         // Removed starboard block
         if (sub === 'suggestions') { 
             removeSuggestionChannel(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '🗳️ Suggestion channel has been disabled.', color: THEME.accent })] }); 
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '🗳️ Suggestion channel has been disabled.', color: THEME.accent })] }); 
         }
         if (sub === 'counting') { 
             removeCountingChannel(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '🔢 Counting channel has been disabled.', color: THEME.accent })] }); 
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '🔢 Counting channel has been disabled.', color: THEME.accent })] }); 
         }
         if (sub === 'logchannel') { 
             removeLogChannel(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '📜 Mod Log channel has been disabled.', color: THEME.accent })] }); 
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '📜 Mod Log channel has been disabled.', color: THEME.accent })] }); 
         }
         if (sub === 'welcome') { 
             removeWelcome(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '👋 Welcome/Leave system has been disabled.', color: THEME.accent })] }); 
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '👋 Welcome/Leave system has been disabled.', color: THEME.accent })] }); 
         }
         if (sub === 'verify') { 
             removeVerify(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '✅ Verify system has been disabled.', color: THEME.accent })] }); 
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '✅ Verify system has been disabled.', color: THEME.accent })] }); 
         }
         if (sub === 'dynamicvc') { 
             removeDynamicVcHub(interaction.guild.id); 
-            return interaction.reply({ embeds: [createEmbed({ description: '🔊 Dynamic VC hub has been disabled.', color: THEME.accent })] }); 
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '🔊 Dynamic VC hub has been disabled.', color: THEME.accent })] }); 
         }
     },
 };

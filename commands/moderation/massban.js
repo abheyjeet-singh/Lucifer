@@ -14,7 +14,7 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
 
     async execute(message, args, client) {
-        if (args.length === 0) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide user IDs to mass ban.', color: THEME.error })] });
+        if (args.length === 0) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide user IDs to mass ban.', color: THEME.error })] });
         const rawIds = args.join(' ').split(/[\s,]+/);
         return this.run(client, message.guild, message.member, rawIds, message);
     },
@@ -26,7 +26,7 @@ module.exports = {
 
     async run(client, guild, moderator, rawIds, context) {
         const validIds = rawIds.filter(id => /^\d{17,20}$/.test(id));
-        if (validIds.length === 0) return context.reply({ embeds: [createEmbed({ description: '⚠️ No valid user IDs found.', color: THEME.error })] });
+        if (validIds.length === 0) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ No valid user IDs found.', color: THEME.error })] });
 
         const banned = [];
         const failed = [];

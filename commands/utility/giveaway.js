@@ -2,7 +2,6 @@ const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder,
 const { createEmbed, THEME } = require('../../utils/embeds');
 const { addGiveaway, removeGiveaway, getActiveGiveaways, getGiveawayById, setGiveawayEnded, getBoosterRoles, getGiveawayPingRole, setGiveawayPingRole, removeGiveawayPingRole } = require('../../database/db');
 
-// Updated to accept "min" and "m" for minutes
 function parseDuration(str) { 
     const regex = /^(\d+)(s|min|m|h|d)$/; 
     const match = str?.toLowerCase().match(regex); 
@@ -77,7 +76,7 @@ function startRerollCleanup(client, channelId, messageId) {
         } catch (e) { console.error('Reroll Cleanup Fetch Error:', e); }
         removeGiveaway(messageId);
         rerollCleanupTimeouts.delete(messageId);
-    }, 3600000); // 1 Hour in ms
+    }, 3600000); 
 
     rerollCleanupTimeouts.set(messageId, timeoutId);
 }
@@ -111,6 +110,15 @@ module.exports = {
               .setDescription('Cancel an active giveaway')
               .addStringOption(o => o.setName('id').setDescription('The giveaway message ID').setRequired(true)))
         .addSubcommand(sc =>
+            sc.setName('restore')
+              .setDescription('Restore a deleted giveaway message!')
+              .addStringOption(o => o.setName('id').setDescription('The ORIGINAL giveaway message ID').setRequired(true))
+              .addChannelOption(o =>
+                  o.setName('channel')
+                   .setDescription('Channel to repost it in (defaults to current)')
+                   .setRequired(false)
+                   .addChannelTypes(ChannelType.GuildText)))
+        .addSubcommand(sc =>
             sc.setName('pingrole')
               .setDescription('Set the role to ping when a giveaway starts')
               .addRoleOption(o => o.setName('role').setDescription('The role to ping (leave empty to disable)').setRequired(false)))
@@ -122,8 +130,13 @@ module.exports = {
         if (sub === 'list') return this.showList(client, message.guild, message);
         if (sub === 'cancel') {
             const id = args[1];
-            if (!id) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!giveaway cancel <message_id>`', color: THEME.error })] });
+            if (!id) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!giveaway cancel <message_id>`', color: THEME.error })] });
             return this.cancelGiveaway(client, message.guild, message.member, id, message);
+        }
+        if (sub === 'restore') {
+            const id = args[1];
+            if (!id) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!giveaway restore <original_message_id>`', color: THEME.error })] });
+            return this.restoreGiveaway(client, message.guild, message.channel, id, message);
         }
         if (sub === 'pingrole') {
             const role = message.mentions.roles.first();
@@ -143,7 +156,7 @@ module.exports = {
         }
 
         if (!ms || isNaN(winners) || !cleanPrize) {
-            return message.reply({ embeds: [createEmbed({ description: '⚠️ `l!giveaway 10min 1 Nitro [#channel]` or `l!giveaway list` or `l!giveaway cancel <id>`', color: THEME.error })] }); 
+            return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ `l!giveaway 10min 1 Nitro [#channel]` or `l!giveaway list` or `l!giveaway cancel <id>`', color: THEME.error })] }); 
         }
         return this.startGiveaway(client, message.guild, targetChannel, ms, winners, cleanPrize, message); 
     },
@@ -152,6 +165,10 @@ module.exports = {
         const sub = interaction.options.getSubcommand();
         if (sub === 'list') return this.showList(client, interaction.guild, interaction);
         if (sub === 'cancel') return this.cancelGiveaway(client, interaction.guild, interaction.member, interaction.options.getString('id'), interaction);
+        if (sub === 'restore') {
+            const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
+            return this.restoreGiveaway(client, interaction.guild, targetChannel, interaction.options.getString('id'), interaction);
+        }
         if (sub === 'pingrole') {
             const role = interaction.options.getRole('role');
             return this.configurePingRole(client, interaction.guild, role, interaction);
@@ -160,18 +177,18 @@ module.exports = {
         const winners = interaction.options.getInteger('winners'); 
         const prize = interaction.options.getString('prize'); 
         const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
-        if (!ms) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration. Use s, min, h, or d.', color: THEME.error })], flags: 64 }); 
+        if (!ms) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Invalid duration. Use s, min, h, or d.', color: THEME.error })], flags: 64 }); 
         return this.startGiveaway(client, interaction.guild, targetChannel, ms, winners, prize, interaction); 
     },
 
     async configurePingRole(client, guild, role, context) {
         if (role) {
             setGiveawayPingRole(guild.id, role.id);
-            const payload = { embeds: [createEmbed({ description: `🔔 Giveaway ping role set to ${role}.`, color: THEME.success })] };
+            const payload = { embeds: [createEmbed({ context: guild, description: `🔔 Giveaway ping role set to ${role}.`, color: THEME.success })] };
             return context.isChatInputCommand !== undefined ? context.reply(payload) : context.reply(payload);
         } else {
             removeGiveawayPingRole(guild.id);
-            const payload = { embeds: [createEmbed({ description: '🔔 Giveaway ping role disabled.', color: THEME.success })] };
+            const payload = { embeds: [createEmbed({ context: guild, description: '🔔 Giveaway ping role disabled.', color: THEME.success })] };
             return context.isChatInputCommand !== undefined ? context.reply(payload) : context.reply(payload);
         }
     },
@@ -180,7 +197,7 @@ module.exports = {
         const giveaways = getActiveGiveaways().filter(g => g.guildId === guild.id);
         
         if (giveaways.length === 0) {
-            return context.reply({ embeds: [createEmbed({ description: '🎁 No active giveaways running.', color: THEME.dark })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '🎁 No active giveaways running.', color: THEME.dark })] });
         }
 
         const items = giveaways.map((g, i) => {
@@ -201,13 +218,13 @@ module.exports = {
     },
 
     async cancelGiveaway(client, guild, member, messageId, context) {
-        if (!member.permissions.has('ManageMessages')) return context.reply({ embeds: [createEmbed({ description: '🚫 You need Manage Messages permission.', color: THEME.error })] });
+        if (!member.permissions.has('ManageMessages')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 You need Manage Messages permission.', color: THEME.error })] });
 
         const giveaways = getActiveGiveaways().filter(g => g.guildId === guild.id);
         const giveaway = giveaways.find(g => g.messageId === messageId);
 
         if (!giveaway) {
-            return context.reply({ embeds: [createEmbed({ description: '⚠️ No active giveaway found with that ID. Use `/giveaway list` to see active ones.', color: THEME.error })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ No active giveaway found with that ID. Use `/giveaway list` to see active ones.', color: THEME.error })] });
         }
 
         cancelTimeout(messageId);
@@ -232,7 +249,76 @@ module.exports = {
             }
         } catch {}
 
-        return context.reply({ embeds: [createEmbed({ description: `🎁 Giveaway for **${giveaway.prize}** has been cancelled.`, color: THEME.primary })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🎁 Giveaway for **${giveaway.prize}** has been cancelled.`, color: THEME.primary })] });
+    },
+
+    // ════════════════════════════════════════
+    // ── GIVEAWAY RESTORE SYSTEM ──
+    // ════════════════════════════════════════
+    async restoreGiveaway(client, guild, targetChannel, originalId, context) {
+        const isInteraction = !!context.isCommand; // Check if slash command or prefix
+
+        if (isInteraction) await context.deferReply();
+
+        const data = getGiveawayById(originalId);
+        if (!data) {
+            const payload = { embeds: [createEmbed({ context: guild, description: '⚠️ No giveaway data found for that ID. It may have already been cleaned up.', color: THEME.error })] };
+            return isInteraction ? context.editReply(payload) : context.reply(payload);
+        }
+        if (data.ended) {
+            const payload = { embeds: [createEmbed({ context: guild, description: '⚠️ That giveaway has already ended and cannot be restored.', color: THEME.error })] };
+            return isInteraction ? context.editReply(payload) : context.reply(payload);
+        }
+        if (data.guildId !== guild.id) {
+            const payload = { embeds: [createEmbed({ context: guild, description: '⚠️ That giveaway does not belong to this server.', color: THEME.error })] };
+            return isInteraction ? context.editReply(payload) : context.reply(payload);
+        }
+
+        // 1. Delete the old DB record and cancel any lingering timeout
+        removeGiveaway(originalId);
+        cancelTimeout(originalId);
+
+        // 2. Construct the new giveaway message exactly as it was
+        const endsAtDiscord = Math.floor(data.endsAt / 1000);
+        const hostMention = `<@${data.hostId}>`;
+        await client.user.fetch(true).catch(() => {});
+        const bannerURL = getBotBanner(client);
+
+        const boosterRoles = getBoosterRoles(guild.id);
+        let extraEntriesInfo = '';
+        if (boosterRoles.length > 0) {
+            const lines = boosterRoles.map(br => `✨ <@&${br.role_id}>: +${br.bonus_entries} extra entries`);
+            extraEntriesInfo = '\n\n**✨ Extra Entries:**\n' + lines.join('\n');
+        }
+
+        const startEmbed = createEmbed({ 
+            title: '🎁 The Devil\'s Lottery', 
+            description: `**Prize:** ${data.prize}\n**Winners:** ${data.winners}\n**Host:** ${hostMention}\n**Ends:** <t:${endsAtDiscord}:R>${extraEntriesInfo}\n\nReact with 🎉 to enter!`, 
+            color: THEME.primary,
+            image: bannerURL,
+            footer: { text: `🔥 Hosted by the Lord of Hell | RESTORED` }
+        });
+
+        const pingRoleId = getGiveawayPingRole(guild.id);
+        const pingContent = pingRoleId ? `🔔 <@&${pingRoleId}> A giveaway has been restored!` : '';
+
+        const msg = await targetChannel.send({ 
+            content: pingContent,
+            embeds: [startEmbed],
+            allowedMentions: { parse: ['users', 'roles'] }
+        });
+        await msg.react('🎉');
+
+        // 3. Update data with the new IDs and save to DB
+        data.messageId = msg.id;
+        data.channelId = targetChannel.id;
+        addGiveaway(data);
+
+        // 4. Resume the giveaway timer using existing logic
+        this.resumeGiveaway(client, data);
+
+        const replyPayload = { embeds: [createEmbed({ context: guild, description: `🎁 Giveaway restored in ${targetChannel}! New ID: \`${msg.id}\``, color: THEME.success })] };
+        return isInteraction ? context.editReply(replyPayload) : context.reply(replyPayload);
     },
 
     async startGiveaway(client, guild, targetChannel, ms, winners, prize, context) {
@@ -242,7 +328,7 @@ module.exports = {
         const hostMention = `<@${hostId}>`;
 
         if (!targetChannel.permissionsFor(client.user)?.has(['ViewChannel', 'SendMessages', 'EmbedLinks', 'AddReactions'])) {
-            return context.reply({ embeds: [createEmbed({ description: `⚠️ I don't have permission to send messages or add reactions in ${targetChannel}.`, color: THEME.error })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `⚠️ I don't have permission to send messages or add reactions in ${targetChannel}.`, color: THEME.error })] });
         }
 
         await client.user.fetch(true).catch(() => {});
@@ -263,7 +349,6 @@ module.exports = {
             footer: { text: `🔥 Hosted by the Lord of Hell` }
         });
         
-        // Check for Giveaway Ping Role
         const pingRoleId = getGiveawayPingRole(guild.id);
         const pingContent = pingRoleId ? `🔔 <@&${pingRoleId}> A new giveaway has started!` : '';
 
@@ -277,7 +362,7 @@ module.exports = {
         addGiveaway({ guildId: guild.id, channelId: targetChannel.id, messageId: msg.id, endsAt: endsAtMs, winners, prize, hostId });
         
         const channelInfo = targetChannel.id !== (context.channel?.id) ? ` in ${targetChannel}` : '';
-        await context.reply({ embeds: [createEmbed({ description: `🎁 Giveaway started${channelInfo}! ID: \`${msg.id}\``, color: THEME.success })] });
+        await context.reply({ embeds: [createEmbed({ context: guild, description: `🎁 Giveaway started${channelInfo}! ID: \`${msg.id}\``, color: THEME.success })] });
 
         const endGiveaway = async () => {
             const currentGiveaways = getActiveGiveaways();
@@ -341,7 +426,7 @@ module.exports = {
             );
 
             fetched.edit({ 
-                content: null, // Remove ping role text on end
+                content: null, 
                 embeds: [createEmbed({
                     title: '🎁 Giveaway Ended',
                     description: `**Prize:** ${prize}\n**Winner(s):** ${winnerMentions}\n**Host:** ${hostMention}${actualWinners < winners ? `\n\n⚠️ Only ${actualWinners} out of ${winners} requested winners entered` : ''}`,

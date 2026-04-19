@@ -13,13 +13,12 @@ module.exports = {
         if (target.id === message.author.id) return message.reply('Suicide is not the way. Let me do the killing.');
         
         try {
-            // Searching 'shoot' instead of 'kill' because the API has a massive pool of these GIFs!
             const { data } = await axios.get('https://nekos.best/api/v2/shoot');
             const gif = data.results[0].url;
             
             return message.reply({ 
                 content: `💀🔥 **${message.author.username}** sends <@${target.id}> straight to Hell!`, 
-                embeds: [createEmbed({ image: gif, color: THEME.secondary })],
+                embeds: [createEmbed({ context: message, image: gif, color: THEME.secondary })],
                 allowedMentions: { parse: ['users'] } 
             });
         } catch (e) {
@@ -38,7 +37,7 @@ module.exports = {
             
             return interaction.reply({ 
                 content: `💀🔥 **${interaction.user.username}** sends <@${target.id}> straight to Hell!`, 
-                embeds: [createEmbed({ image: gif, color: THEME.secondary })],
+                embeds: [createEmbed({ context: interaction, image: gif, color: THEME.secondary })],
                 allowedMentions: { parse: ['users'] } 
             });
         } catch (e) {

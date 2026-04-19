@@ -25,6 +25,7 @@ module.exports = {
         const apiLatency = Math.round(client.ws.ping);
 
         sent.edit({ content: null, embeds: [createEmbed({
+            context: context,
             description: `🔥 **Latency:** ${latency}ms\n💫 **API:** ${apiLatency}ms`,
             color: THEME.success,
         })] });

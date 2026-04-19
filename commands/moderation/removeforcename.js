@@ -12,13 +12,13 @@ module.exports = {
 
     async execute(message, args, client) {
         const target = message.mentions.members.first();
-        if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `rfn @user`', color: THEME.error })] });
+        if (!target) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use: `rfn @user`', color: THEME.error })] });
         return this.run(client, message.guild, message.member, target, message);
     },
 
     async run(client, guild, moderator, target, context) {
         const forcedName = getForcedName(guild.id, target.id);
-        if (!forcedName) return context.reply({ embeds: [createEmbed({ description: '⚠️ That soul is not branded with a forced name.', color: THEME.error })] });
+        if (!forcedName) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ That soul is not branded with a forced name.', color: THEME.error })] });
 
         removeForcedName(guild.id, target.id);
         

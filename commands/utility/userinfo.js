@@ -1,5 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
+const { getWarningCount } = require('../../database/db');
+const { buildUserDossierCard } = require('../../utils/canvasBuilder');
 
 module.exports = {
     name: 'userinfo',
@@ -24,60 +26,47 @@ module.exports = {
 
     async run(client, target, context) {
         const user = await target.user.fetch(true);
+        const warnings = getWarningCount(context.guild.id, target.id);
 
-        // Roles
-        const roles = target.roles.cache
-            .filter(r => r.id !== context.guild.id)
-            .sort((a, b) => b.position - a.position)
-            .map(r => r.toString());
-        const rolesDisplay = roles.length > 15 ? `${roles.slice(0, 15).join(', ')}... +${roles.length - 15} more` : roles.join(', ') || 'None';
+        const badgeMap = {
+            Staff: '🛡️', Partner: '🤝', HypeSquad: '🏠', BugHunterLevel1: '🐛',
+            HypeSquadOnlineHouse1: '🏰', HypeSquadOnlineHouse2: '🧠', HypeSquadOnlineHouse3: '⚖️',
+            PremiumEarlySupportor: '💎', BugHunterLevel2: '🐛', VerifiedDeveloper: '🛠️', 
+            CertifiedModerator: '🛡️', ActiveDeveloper: '💻'
+        };
+        const badges = user.flags?.toArray().map(f => badgeMap[f] || '').join(' ') || 'None';
 
         // Key Permissions
-        const keyPerms = [
-            'Administrator', 'ManageGuild', 'ManageChannels', 'ManageRoles',
-            'ManageMessages', 'BanMembers', 'KickMembers', 'MentionEveryone'
-        ];
+        const keyPerms = ['Administrator', 'ManageGuild', 'ManageChannels', 'ManageRoles', 'ManageMessages', 'BanMembers', 'KickMembers', 'MentionEveryone'];
         const perms = target.permissions.toArray()
             .filter(p => keyPerms.includes(p))
             .map(p => `\`${p}\``)
             .join(', ') || 'None';
 
-        // Flags / Badges
-        const badges = user.flags?.toArray().map(flag => {
-            const badgeMap = {
-                Staff: '🛡️ Discord Staff',
-                Partner: '🤝 Partner',
-                HypeSquad: '🏠 HypeSquad',
-                BugHunterLevel1: '🐛 Bug Hunter',
-                HypeSquadOnlineHouse1: '🏰 Bravery',
-                HypeSquadOnlineHouse2: ' Brilliance',
-                HypeSquadOnlineHouse3: '⚖️ Balance',
-                PremiumEarlySupportor: '💎 Early Supporter',
-                BugHunterLevel2: '🐛 Bug Hunter Lvl 2',
-                VerifiedDeveloper: '🛠️ Verified Bot Dev',
-                CertifiedModerator: '🛡️ Certified Moderator',
-                ActiveDeveloper: '💻 Active Developer',
-            };
-            return badgeMap[flag] || flag;
-        }).join(', ') || 'None';
+        // Roles
+        const roles = target.roles.cache
+            .filter(r => r.id !== context.guild.id)
+            .sort((a, b) => b.position - a.position)
+            .map(r => ({ name: r.name, hexColor: r.hexColor || '#99AAB5' }));
 
-        return context.reply({ embeds: [createEmbed({
-            title: `👤 ${user.tag}`,
-            thumbnail: user.displayAvatarURL({ size: 512, dynamic: true }),
-            image: user.bannerURL({ size: 1024, dynamic: true }),
-            fields: [
-                { name: '🆔 Identity', value: `\`${user.id}\``, inline: true },
-                { name: '📅 Account Born', value: `<t:${Math.floor(user.createdTimestamp / 1000)}:R>`, inline: true },
-                { name: '🏅 Badges', value: badges, inline: true },
+        const data = {
+            created: `<t:${Math.floor(user.createdTimestamp / 1000)}:R>`,
+            joined: `<t:${Math.floor(target.joinedTimestamp / 1000)}:R>`,
+            boosting: target.premiumSince ? `Since <t:${Math.floor(target.premiumSinceTimestamp / 1000)}:R>` : 'Not boosting',
+            badges: badges,
+            warnings: warnings,
+            permissions: perms,
+            roles: roles.slice(0, 15), // Limit to 15 roles to prevent canvas overflow
+            roleCount: roles.length
+        };
 
-                { name: '🚪 Realm Joined', value: `<t:${Math.floor(target.joinedTimestamp / 1000)}:R>`, inline: true },
-                { name: '💎 Boosting Since', value: target.premiumSince ? `<t:${Math.floor(target.premiumSinceTimestamp / 1000)}:R>` : 'Not boosting', inline: true },
-                { name: '🏆 Highest Role', value: target.roles.highest.toString(), inline: true },
-
-                { name: `🎭 Roles [${roles.length}]`, value: rolesDisplay, inline: false },
-                { name: '🔑 Key Permissions', value: perms, inline: false },
-            ],
-            color: target.displayHexColor === '#000000' ? THEME.primary : target.displayHexColor,
-        })] });
+        try {
+            const imageBuffer = await buildUserDossierCard(target, data);
+            const attachment = new AttachmentBuilder(imageBuffer, { name: 'userinfo.png' });
+            return context.reply({ files: [attachment] });
+        } catch (e) {
+            console.error('Userinfo Canvas Error:', e);
+            return context.reply({ embeds: [createEmbed({ context: guild, title: `👤 ${user.tag}`, thumbnail: user.displayAvatarURL({ size: 512 }), color: THEME.primary })] });
+        }
     },
 };

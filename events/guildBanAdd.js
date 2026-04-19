@@ -1,12 +1,20 @@
 const { AuditLogEvent, AttachmentBuilder } = require('discord.js');
-const { createEmbed, THEME } = require('../utils/embeds');
-const { getGuildSettings } = require('../database/db');
+const { getGuildSettings, isStickyRolesEnabled, removeStickyUserRoles } = require('../database/db');
 const { buildModLogCard } = require('../utils/canvasBuilder');
 
 module.exports = {
     once: false,
     async execute(ban, client) {
         const { guild, user } = ban;
+
+        // ── Sticky Roles: Wipe saved roles if the user is banned ──
+        // If a user is banned, they forfeit their sticky roles. 
+        // (guildMemberRemove fires first and saves them, so we must delete them here)
+        if (isStickyRolesEnabled(guild.id)) {
+            removeStickyUserRoles(guild.id, user.id);
+        }
+
+        // ── EXISTING BAN LOG LOGIC ──
         const settings = getGuildSettings(guild.id);
         if (!settings.log_channel_id) return;
         const logChannel = guild.channels.cache.get(settings.log_channel_id);
@@ -26,9 +34,9 @@ module.exports = {
         try {
             const imageBuffer = await buildModLogCard(
                 user.displayAvatarURL({ extension: 'png' }), 
-                '#e74c3c', // Red accent
-                'MEMBER BANNED', 
-                [`User: ${user.tag} (${user.id})`, `Moderator: ${moderatorTag}`, `Reason: ${reason}`]
+                '#e74c3c', 
+                'SOUL BANISHED', 
+                [`Victim: ${user.tag} (${user.id})`, `Inquisitor: ${moderatorTag}`, `Reason: ${reason}`]
             );
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'ban.png' });
             await logChannel.send({ files: [attachment] });

@@ -18,7 +18,7 @@ module.exports = {
             
             return message.reply({ 
                 content: `💋 **${message.author.username}** kisses <@${target.id}>!`, 
-                embeds: [createEmbed({ image: gif, color: THEME.primary })],
+                embeds: [createEmbed({ context: message, image: gif, color: THEME.primary })],
                 allowedMentions: { parse: ['users'] } 
             });
         } catch (e) {
@@ -37,7 +37,7 @@ module.exports = {
             
             return interaction.reply({ 
                 content: `💋 **${interaction.user.username}** kisses <@${target.id}>!`, 
-                embeds: [createEmbed({ image: gif, color: THEME.primary })],
+                embeds: [createEmbed({ context: interaction, image: gif, color: THEME.primary })],
                 allowedMentions: { parse: ['users'] } 
             });
         } catch (e) {

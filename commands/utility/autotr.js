@@ -45,11 +45,11 @@ module.exports = {
         if (currentLang) {
             // If it's already enabled, disable it
             removeAutoTranslateChannel(guild.id, channel.id);
-            return context.reply({ embeds: [createEmbed({ description: `🔴 Auto-Translate disabled in ${channel}.`, color: THEME.accent })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `🔴 Auto-Translate disabled in ${channel}.`, color: THEME.accent })] });
         } else {
             // Enable it with the chosen language
             addAutoTranslateChannel(guild.id, channel.id, lang);
-            return context.reply({ embeds: [createEmbed({ description: `🟢 Auto-Translate enabled in ${channel}.\nTarget Language: **${lang.toUpperCase()}**\n\nAny message not in ${lang.toUpperCase()} will be translated automatically.`, color: THEME.success })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `🟢 Auto-Translate enabled in ${channel}.\nTarget Language: **${lang.toUpperCase()}**\n\nAny message not in ${lang.toUpperCase()} will be translated automatically.`, color: THEME.success })] });
         }
     },
 };

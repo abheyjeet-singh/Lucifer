@@ -21,7 +21,7 @@ module.exports = {
         if (sub === 'off') return this.off(client, message.guild, message);
         if (sub === 'show' || !sub) return this.show(client, message.guild, message);
         const ch = message.mentions.channels.first();
-        if (!ch) return message.reply({ embeds: [createEmbed({ description: '⚠️ Mention a voice channel.', color: THEME.error })] });
+        if (!ch) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Mention a voice channel.', color: THEME.error })] });
         return this.set(client, message.guild, ch, message);
     },
 
@@ -34,19 +34,19 @@ module.exports = {
 
     async show(client, guild, context) {
         const hubId = getDynamicVcHub(guild.id);
-        if (!hubId) return context.reply({ embeds: [createEmbed({ description: '⚠️ Dynamic VCs are not set up.', color: THEME.dark })] });
+        if (!hubId) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Dynamic VCs are not set up.', color: THEME.dark })] });
         const ch = guild.channels.cache.get(hubId);
-        return context.reply({ embeds: [createEmbed({ description: `⭐ Dynamic VC Hub: ${ch || 'Unknown Channel'}`, color: THEME.celestial })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `⭐ Dynamic VC Hub: ${ch || 'Unknown Channel'}`, color: THEME.celestial })] });
     },
 
     async set(client, guild, channel, context) {
         setDynamicVcHub(guild.id, channel.id);
         await channel.setName('⭐ Create Room');
-        return context.reply({ embeds: [createEmbed({ description: `⭐ Dynamic VC Hub set to ${channel}.\nWhen users join it, they will get their own private room!`, color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `⭐ Dynamic VC Hub set to ${channel}.\nWhen users join it, they will get their own private room!`, color: THEME.success })] });
     },
 
     async off(client, guild, context) {
         setDynamicVcHub(guild.id, null);
-        return context.reply({ embeds: [createEmbed({ description: '⭐ Dynamic VCs have been disabled.', color: THEME.accent })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: '⭐ Dynamic VCs have been disabled.', color: THEME.accent })] });
     },
 };

@@ -31,7 +31,6 @@ module.exports = {
         let statusIndex = 0;
         
         const updateStatus = () => {
-            // Update dynamic values (Ping and Server Count) before setting
             if (statusList[statusIndex].name.includes('Ping:')) {
                 statusList[statusIndex].name = `📶 Ping: ${client.ws.ping}ms`;
             }
@@ -47,8 +46,8 @@ module.exports = {
             statusIndex = (statusIndex + 1) % statusList.length;
         };
 
-        updateStatus(); // Set initial status immediately
-        setInterval(updateStatus, 60 * 1000); // Rotate every 60 seconds
+        updateStatus();
+        setInterval(updateStatus, 60 * 1000);
 
         // ── Resume Active Giveaways ──
         try {
@@ -61,6 +60,14 @@ module.exports = {
             }
         } catch (error) {
             logger.error('Failed to resume giveaways: ' + error.message);
+        }
+
+        // ── Resume Active Invite Events ──
+        try {
+            const inviteEventCmd = require('../commands/utility/inviteevent');
+            await inviteEventCmd.resumeInviteEvents(client);
+        } catch (error) {
+            logger.error('Failed to resume invite events: ' + error.message);
         }
     },
 };

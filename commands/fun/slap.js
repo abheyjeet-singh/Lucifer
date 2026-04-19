@@ -13,13 +13,12 @@ module.exports = {
         if (target.id === message.author.id) return message.reply('Why are you slapping yourself? Strange mortal...');
         
         try {
-            // Using nekos.best API - extremely reliable for Discord bots
             const { data } = await axios.get('https://nekos.best/api/v2/slap');
-            const gif = data.results[0].url; // Gets the direct .gif URL
+            const gif = data.results[0].url;
             
             return message.reply({ 
                 content: `👋 **${message.author.username}** slaps <@${target.id}>!`, 
-                embeds: [createEmbed({ image: gif, color: THEME.accent })],
+                embeds: [createEmbed({ context: message, image: gif, color: THEME.accent })],
                 allowedMentions: { parse: ['users'] } 
             });
         } catch (e) {
@@ -38,7 +37,7 @@ module.exports = {
             
             return interaction.reply({ 
                 content: `👋 **${interaction.user.username}** slaps <@${target.id}>!`, 
-                embeds: [createEmbed({ image: gif, color: THEME.accent })],
+                embeds: [createEmbed({ context: interaction, image: gif, color: THEME.accent })],
                 allowedMentions: { parse: ['users'] } 
             });
         } catch (e) {

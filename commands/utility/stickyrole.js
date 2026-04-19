@@ -40,11 +40,11 @@ module.exports = {
         if (sub === 'disable') return this.disable(client, message.guild, message.member, message);
         if (sub === 'ignore') {
             const role = message.mentions.roles.first();
-            if (!role) return message.reply({ embeds: [createEmbed({ description: '⚠️ Mention a role to ignore.', color: THEME.error })] });
+            if (!role) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Mention a role to ignore.', color: THEME.error })] });
             return this.toggleIgnore(client, message.guild, message.member, role, message);
         }
         if (sub === 'ignorelist') return this.showIgnore(client, message.guild, message);
-        return message.reply({ embeds: [createEmbed({ description: '⚠️ Unknown subcommand. Use: `enable`, `disable`, `ignore`, `ignorelist`, `show`', color: THEME.error })] });
+        return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Unknown subcommand. Use: `enable`, `disable`, `ignore`, `ignorelist`, `show`', color: THEME.error })] });
     },
 
     async interact(interaction, client) {
@@ -57,43 +57,43 @@ module.exports = {
     },
 
     async enable(client, guild, member, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Only administrators may configure sticky roles.', color: THEME.error })] });
-        if (isStickyRolesEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ description: '📌 Sticky roles are already enabled.', color: THEME.dark })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only administrators may configure sticky roles.', color: THEME.error })] });
+        if (isStickyRolesEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ context: guild, description: '📌 Sticky roles are already enabled.', color: THEME.dark })] });
         setStickyRolesEnabled(guild.id, true);
-        return context.reply({ embeds: [createEmbed({ description: '📌 Sticky roles **enabled**. Members who leave will have their roles saved and restored on rejoin.', color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: '📌 Sticky roles **enabled**. Members who leave will have their roles saved and restored on rejoin.', color: THEME.success })] });
     },
 
     async disable(client, guild, member, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Only administrators may configure sticky roles.', color: THEME.error })] });
-        if (!isStickyRolesEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ description: '📌 Sticky roles are already disabled.', color: THEME.dark })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only administrators may configure sticky roles.', color: THEME.error })] });
+        if (!isStickyRolesEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ context: guild, description: '📌 Sticky roles are already disabled.', color: THEME.dark })] });
         removeStickyRolesConfig(guild.id);
-        return context.reply({ embeds: [createEmbed({ description: '📌 Sticky roles **disabled**. All saved role data has been cleared.', color: THEME.primary })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: '📌 Sticky roles **disabled**. All saved role data has been cleared.', color: THEME.primary })] });
     },
 
     async toggleIgnore(client, guild, member, role, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Only administrators may configure sticky roles.', color: THEME.error })] });
-        if (role.id === guild.id) return context.reply({ embeds: [createEmbed({ description: '⚠️ Cannot ignore the @everyone role — it is always excluded automatically.', color: THEME.error })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only administrators may configure sticky roles.', color: THEME.error })] });
+        if (role.id === guild.id) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Cannot ignore the @everyone role — it is always excluded automatically.', color: THEME.error })] });
 
         const ignored = getStickyRolesIgnore(guild.id);
         if (ignored.includes(role.id)) {
             const updated = ignored.filter(id => id !== role.id);
             setStickyRolesIgnore(guild.id, updated);
-            return context.reply({ embeds: [createEmbed({ description: `📌 ${role} removed from the ignore list. It will now be saved and restored.`, color: THEME.success })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `📌 ${role} removed from the ignore list. It will now be saved and restored.`, color: THEME.success })] });
         } else {
             ignored.push(role.id);
             setStickyRolesIgnore(guild.id, ignored);
-            return context.reply({ embeds: [createEmbed({ description: `📌 ${role} added to the ignore list. It will NOT be saved or restored.`, color: THEME.celestial })] });
+            return context.reply({ embeds: [createEmbed({ context: guild, description: `📌 ${role} added to the ignore list. It will NOT be saved or restored.`, color: THEME.celestial })] });
         }
     },
 
     async showIgnore(client, guild, context) {
         const ignored = getStickyRolesIgnore(guild.id);
-        if (ignored.length === 0) return context.reply({ embeds: [createEmbed({ description: '📌 No roles are on the ignore list. All roles (except @everyone) will be saved.', color: THEME.dark })] });
+        if (ignored.length === 0) return context.reply({ embeds: [createEmbed({ context: guild, description: '📌 No roles are on the ignore list. All roles (except @everyone) will be saved.', color: THEME.dark })] });
         const roleList = ignored.map(id => {
             const role = guild.roles.cache.get(id);
             return role ? role.toString() : `<deleted-role:${id}>`;
         }).join('\n');
-        return context.reply({ embeds: [createEmbed({ title: '📌 Sticky Roles — Ignore List', description: roleList, color: THEME.celestial })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, title: '📌 Sticky Roles — Ignore List', description: roleList, color: THEME.celestial })] });
     },
 
     async show(client, guild, context) {

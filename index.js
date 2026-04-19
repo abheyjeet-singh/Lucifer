@@ -8,10 +8,15 @@ const logger = require('./utils/logger');
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildBans, GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildBans,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.GuildInvites,
     ],
-    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember],
 });
 
 client.snipes = new Map();
@@ -47,10 +52,9 @@ client.once('clientReady', () => {
             }
             removeReminder(rem.id);
         }
-    }, 15 * 1000); // Check every 15 seconds for precise reminders
+    }, 15 * 1000);
 
     // ── ITEM EXPIRATION SWEEPER ──
-    // Runs every 5 minutes to remove expired shop items (like Rob Shields) from the database
     setInterval(() => {
         try {
             const db = require('./database/db').db;
@@ -62,7 +66,7 @@ client.once('clientReady', () => {
         } catch (err) {
             logger.error('Sweeper Error:', err);
         }
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000);
 });
 
 client.login(process.env.TOKEN)

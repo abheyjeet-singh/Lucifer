@@ -19,7 +19,7 @@ module.exports = {
                 footer: { text: `👍 ${meme.ups} | r/${meme.subreddit}` }
             })] });
         } catch (e) {
-            return message.reply({ embeds: [createEmbed({ description: '❌ Could not fetch a meme. Try again later.', color: THEME.error })] });
+            return message.reply({ embeds: [createEmbed({ context: message, description: '❌ Could not fetch a meme. Try again later.', color: THEME.error })] });
         }
     },
 
@@ -36,7 +36,7 @@ module.exports = {
                 footer: { text: `👍 ${meme.ups} | r/${meme.subreddit}` }
             })] });
         } catch (e) {
-            return interaction.editReply({ embeds: [createEmbed({ description: '❌ Could not fetch a meme.', color: THEME.error })] });
+            return interaction.editReply({ embeds: [createEmbed({ context: guild, description: '❌ Could not fetch a meme.', color: THEME.error })] });
         }
     }
 };

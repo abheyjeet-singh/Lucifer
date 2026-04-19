@@ -43,8 +43,8 @@ module.exports = {
         const eco = getUserEconomy(message.guild.id, message.author.id);
         const bet = input.toLowerCase() === 'all' || input.toLowerCase() === 'max' ? eco.wallet : parseInt(input);
 
-        if (isNaN(bet) || bet <= 0) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid bet amount.', color: THEME.error })] });
-        if (eco.wallet < bet) return message.reply({ embeds: [createEmbed({ description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })] });
+        if (isNaN(bet) || bet <= 0) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid bet amount.', color: THEME.error })] });
+        if (eco.wallet < bet) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })] });
 
         eco.wallet -= bet;
         updateUserEconomy(message.guild.id, message.author.id, eco);
@@ -71,8 +71,8 @@ module.exports = {
         const eco = getUserEconomy(interaction.guild.id, interaction.user.id);
         const bet = input.toLowerCase() === 'all' || input.toLowerCase() === 'max' ? eco.wallet : parseInt(input);
 
-        if (isNaN(bet) || bet <= 0) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid bet amount.', color: THEME.error })], flags: 64 });
-        if (eco.wallet < bet) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })], flags: 64 });
+        if (isNaN(bet) || bet <= 0) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Invalid bet amount.', color: THEME.error })], flags: 64 });
+        if (eco.wallet < bet) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })], flags: 64 });
 
         eco.wallet -= bet;
         updateUserEconomy(interaction.guild.id, interaction.user.id, eco);

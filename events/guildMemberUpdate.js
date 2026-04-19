@@ -17,7 +17,7 @@ module.exports = {
             try {
                 const imageBuffer = await buildModLogCard(
                     newMember.user.displayAvatarURL({ extension: 'png' }),
-                    '#3498db', // Blue accent
+                    '#3498db', 
                     'IDENTITY ALTERED',
                     [`User: ${newMember.user.tag} (${newMember.id})`, `Old Name: ${oldNick}`, `New Name: ${newNick}`]
                 );
@@ -26,20 +26,26 @@ module.exports = {
             } catch (e) { console.error(e); }
         }
 
-        // 2. Role Changes (Canvas)
+        // 2. Role Changes (Canvas - Back by popular demand!)
         const addedRoles = newMember.roles.cache.filter(r => !oldMember.roles.cache.has(r.id));
         const removedRoles = oldMember.roles.cache.filter(r => !newMember.roles.cache.has(r.id));
 
         if ((addedRoles.size > 0 || removedRoles.size > 0) && logChannel) {
-            const addedStr = addedRoles.map(r => `+ ${r.name}`).join(', ') || 'None';
-            const removedStr = removedRoles.map(r => `- ${r.name}`).join(', ') || 'None';
+            const details = [`User: ${newMember.user.tag} (${newMember.id})`];
+            
+            if (addedRoles.size > 0) {
+                details.push(`Added: ${addedRoles.map(r => r.name).join(', ')}`);
+            }
+            if (removedRoles.size > 0) {
+                details.push(`Removed: ${removedRoles.map(r => r.name).join(', ')}`);
+            }
 
             try {
                 const imageBuffer = await buildModLogCard(
                     newMember.user.displayAvatarURL({ extension: 'png' }),
-                    '#9b59b6', // Purple accent
+                    '#9b59b6', 
                     'ROLES ALTERED',
-                    [`User: ${newMember.user.tag} (${newMember.id})`, `Added: ${addedStr.substring(0, 50)}`, `Removed: ${removedStr.substring(0, 50)}`]
+                    details
                 );
                 const attachment = new AttachmentBuilder(imageBuffer, { name: 'roles.png' });
                 await logChannel.send({ files: [attachment] });

@@ -15,7 +15,7 @@ module.exports = {
 
     async execute(message, args, client) {
         const seconds = args[0]?.toLowerCase() === 'off' ? 0 : parseInt(args[0]);
-        if (isNaN(seconds)) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide seconds (0 to disable).', color: THEME.error })] });
+        if (isNaN(seconds)) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide seconds (0 to disable).', color: THEME.error })] });
         return this.run(client, message.guild, message.channel, message.member, seconds, message);
     },
 
@@ -32,6 +32,6 @@ module.exports = {
             color: seconds ? THEME.accent : THEME.success,
         }));
 
-        return context.reply({ embeds: [createEmbed({ description: seconds ? `🐌 Slowmode set to **${seconds}s** in ${channel}.` : `🐌 Slowmode disabled in ${channel}.`, color: THEME.primary })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: seconds ? `🐌 Slowmode set to **${seconds}s** in ${channel}.` : `🐌 Slowmode disabled in ${channel}.`, color: THEME.primary })] });
     },
 };

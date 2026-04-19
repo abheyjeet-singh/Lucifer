@@ -22,7 +22,7 @@ module.exports = {
     async run(client, guild, channel, context) {
         const snipe = client.snipes.get(`${guild.id}-${channel.id}`);
 
-        if (!snipe) return context.reply({ embeds: [createEmbed({ description: '💀 Nothing to snipe. The shadows are empty.', color: THEME.dark })] });
+        if (!snipe) return context.reply({ embeds: [createEmbed({ context: guild, description: '💀 Nothing to snipe. The shadows are empty.', color: THEME.dark })] });
 
         return context.reply({ embeds: [createEmbed({
             author: { name: snipe.authorTag, iconURL: snipe.avatar },

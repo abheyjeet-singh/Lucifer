@@ -18,20 +18,20 @@ module.exports = {
 
     async execute(message, args, client) {
         const target = message.mentions.members.first() || await message.guild.members.fetch(args[0]).catch(() => null);
-        if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Mention a valid soul to silence.', color: THEME.error })] });
+        if (!target) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Mention a valid soul to silence.', color: THEME.error })] });
         const durationStr = args[1];
         const ms = this.parseDuration(durationStr);
-        if (!ms) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid duration. Use format: `1m`, `1h`, `1d`', color: THEME.error })] });
+        if (!ms) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid duration. Use format: `1m`, `1h`, `1d`', color: THEME.error })] });
         const reason = args.slice(2).join(' ') || 'No reason provided';
         return this.run(client, message.guild, message.member, target, ms, durationStr, reason, message);
     },
 
     async run(client, guild, moderator, target, ms, durationStr, reason, context) {
-        if (!target.moderatable) return context.reply({ embeds: [createEmbed({ description: '🚫 I cannot silence this soul.', color: THEME.error })] });
+        if (!target.moderatable) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 I cannot silence this soul.', color: THEME.error })] });
 
         await target.timeout(ms, `${moderator.user.tag}: ${reason}`);
 
-        try { await target.send({ embeds: [createEmbed({ title: '🔇 You Have Been Silenced', description: `Muted in **${guild.name}**\n**Duration:** ${durationStr}\n**Reason:** ${reason}\n**Moderator:** ${moderator.user.tag}`, color: THEME.secondary })] }); } catch {}
+        try { await target.send({ embeds: [createEmbed({ context: guild, title: '🔇 You Have Been Silenced', description: `Muted in **${guild.name}**\n**Duration:** ${durationStr}\n**Reason:** ${reason}\n**Moderator:** ${moderator.user.tag}`, color: THEME.secondary })] }); } catch {}
 
         modLog(client, guild, createEmbed({
             title: '🔇 Member Muted',
@@ -39,6 +39,6 @@ module.exports = {
             color: THEME.accent,
         }));
 
-        return context.reply({ embeds: [createEmbed({ description: `🔇 **${target.user.tag}** has been silenced by divine decree.\n⏱️ **Duration:** ${durationStr}\n📋 **Reason:** ${reason}`, color: THEME.primary, thumbnail: target.user.displayAvatarURL({ size: 256 }) })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🔇 **${target.user.tag}** has been silenced by divine decree.\n⏱️ **Duration:** ${durationStr}\n📋 **Reason:** ${reason}`, color: THEME.primary, thumbnail: target.user.displayAvatarURL({ size: 256 }) })] });
     },
 };

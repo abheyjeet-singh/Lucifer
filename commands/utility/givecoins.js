@@ -10,20 +10,20 @@ module.exports = {
 
     async execute(message, args, client) {
         if (message.author.id !== process.env.BOT_OWNER_ID) {
-            return message.reply({ embeds: [createEmbed({ description: '🚫 Only the Bot Owner can use this command.', color: THEME.error })] });
+            return message.reply({ embeds: [createEmbed({ context: message, description: '🚫 Only the Bot Owner can use this command.', color: THEME.error })] });
         }
 
         const target = message.mentions.users.first();
         const amount = parseInt(args[1]);
 
-        if (!target) return message.reply({ embeds: [createEmbed({ description: '⚠️ Usage: `l!givecoins @user amount`', color: THEME.error })] });
-        if (isNaN(amount) || amount <= 0) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid amount.', color: THEME.error })] });
+        if (!target) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Usage: `l!givecoins @user amount`', color: THEME.error })] });
+        if (isNaN(amount) || amount <= 0) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid amount.', color: THEME.error })] });
 
         const eco = getUserEconomy(message.guild.id, target.id);
         eco.wallet += amount;
         updateUserEconomy(message.guild.id, target.id, eco);
 
-        return message.reply({ embeds: [createEmbed({ 
+        return message.reply({ embeds: [createEmbed({ context: message, 
             description: `✅ Added **${amount.toLocaleString()} LC** to ${target}'s wallet.\n💳 **New Wallet Balance:** ${eco.wallet.toLocaleString()} LC`, 
             color: THEME.success 
         })] });

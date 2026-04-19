@@ -30,6 +30,7 @@ module.exports = {
         else if (remaining <= 10) { statusEmoji = '⚠️'; statusText = 'Wisdom is running low. Use it wisely.'; }
 
         return context.reply({ embeds: [createEmbed({
+            context: context,
             title: '🔮 AI Wisdom Quota',
             description: `${statusEmoji} **${remaining}** / **${AI_DAILY_LIMIT}** requests remaining today.\n\n*${statusText}*`,
             color: remaining <= 10 ? THEME.accent : THEME.success,

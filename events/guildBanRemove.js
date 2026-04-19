@@ -22,10 +22,10 @@ module.exports = {
 
         try {
             const imageBuffer = await buildModLogCard(
-                user.displayAvatarURL({ extension: 'png' }), 
-                '#2ecc71', // Green accent
-                'MEMBER UNBANNED', 
-                [`User: ${user.tag} (${user.id})`, `Moderator: ${moderatorTag}`]
+                user.displayAvatarURL({ extension: 'png' }), // TARGET avatar
+                '#2ecc71', 
+                'SOUL ABSOLVED', 
+                [`Victim: ${user.tag} (${user.id})`, `Inquisitor: ${moderatorTag}`]
             );
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'unban.png' });
             await logChannel.send({ files: [attachment] });

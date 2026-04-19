@@ -15,12 +15,12 @@ module.exports = {
         .addSubcommand(sc => sc.setName('off').setDescription('Disable verification'))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    async execute(message, args, client) { return message.reply({ embeds: [createEmbed({ description: '⚠️ Use `/verify` slash command.', color: THEME.error })] }); },
+    async execute(message, args, client) { return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use `/verify` slash command.', color: THEME.error })] }); },
     async interact(interaction, client) {
         const sub = interaction.options.getSubcommand();
         if (sub === 'off') {
             setVerify(interaction.guild.id, { channel_id: null, role_id: null, message_id: null });
-            return interaction.reply({ embeds: [createEmbed({ description: '🛡️ Verification system disabled.', color: THEME.accent })] });
+            return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '🛡️ Verification system disabled.', color: THEME.accent })] });
         }
         const channel = interaction.options.getChannel('channel');
         const role = interaction.options.getRole('role');
@@ -38,6 +38,6 @@ module.exports = {
         const msg = await channel.send({ embeds: [embed], components: [row] });
         setVerify(interaction.guild.id, { channel_id: channel.id, role_id: role.id, message_id: msg.id });
 
-        return interaction.reply({ embeds: [createEmbed({ description: `🛡️ Verification panel created in ${channel}.\n**Verified Role:** ${role}`, color: THEME.success })] });
+        return interaction.reply({ embeds: [createEmbed({ context: interaction, description: `🛡️ Verification panel created in ${channel}.\n**Verified Role:** ${role}`, color: THEME.success })] });
     },
 };

@@ -1,5 +1,6 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const { createEmbed, THEME } = require('../../utils/embeds');
+const { buildBotInfoCard } = require('../../utils/canvasBuilder');
 const package = require('../../package.json');
 
 function formatUptime(ms) {
@@ -29,23 +30,34 @@ module.exports = {
     async sendInfo(client, context) {
         const totalUsers = client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
         
-        await client.user.fetch(true).catch(() => {});
-        const bannerURL = client.user.bannerURL({ size: 1024 }) || null;
+        // Fetch application to get the owner
+        await client.application.fetch();
+        const ownerTag = client.application.owner?.tag || client.application.owner?.name || 'Unknown';
 
-        return context.reply({ embeds: [createEmbed({
-            title: `🔥 ${client.user.username} | The Devil's Stats`,
-            description: `👑 **The Lord of Hell has been ruling since:**\n<t:${Math.floor(client.user.createdTimestamp / 1000)}:R>`,
-            fields: [
-                { name: '⏱️ Uptime', value: `\`${formatUptime(client.uptime)}\``, inline: true },
-                { name: '📶 API Ping', value: `\`${client.ws.ping}ms\``, inline: true },
-                { name: '🐍 Node.js', value: `\`${process.version}\``, inline: true },
-                { name: '🏰 Realms', value: `\`${client.guilds.cache.size}\``, inline: true },
-                { name: '👥 Souls', value: `\`${totalUsers.toLocaleString()}\``, inline: true },
-                { name: '📚 Commands', value: `\`${client.commands.size}\``, inline: true }
-            ],
-            color: THEME.primary,
-            image: bannerURL,
-            footer: { text: `v${package.version} | Lucifer Bot` }
-        })] });
+        const data = {
+            owner: ownerTag,
+            uptime: formatUptime(client.uptime),
+            ping: `${client.ws.ping}ms`,
+            node: process.version,
+            guilds: client.guilds.cache.size.toString(),
+            users: totalUsers.toLocaleString(),
+            commands: client.commands.size.toString(),
+            version: package.version
+        };
+
+        try {
+            const imageBuffer = await buildBotInfoCard(client, data);
+            const attachment = new AttachmentBuilder(imageBuffer, { name: 'botinfo.png' });
+            return context.reply({ files: [attachment] });
+        } catch (e) {
+            console.error('Botinfo Canvas Error:', e);
+            // Fallback to embed if canvas fails
+            return context.reply({ embeds: [createEmbed({
+                title: `🔥 ${client.user.username} | The Devil's Stats`,
+                description: `👑 **Owner:** ${ownerTag}\n\n⏱️ **Uptime:** \`${data.uptime}\`\n📶 **Ping:** \`${data.ping}\`\n🏰 **Realms:** \`${data.guilds}\`\n👥 **Souls:** \`${data.users}\`\n📚 **Commands:** \`${data.commands}\``,
+                color: THEME.primary,
+                footer: { text: `v${package.version} | Lucifer Bot` }
+            })] });
+        }
     }
 };

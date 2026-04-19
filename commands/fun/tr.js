@@ -30,20 +30,20 @@ module.exports = {
             }
         }
 
-        if (!text) return message.reply({ embeds: [createEmbed({ description: '⚠️ Provide text or reply to a message to translate.\nExample: `l!tr es Hello` or reply `l!tr`', color: THEME.error })] });
+        if (!text) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Provide text or reply to a message to translate.\nExample: `l!tr es Hello` or reply `l!tr`', color: THEME.error })] });
         return this.run(client, message.guild, lang, text, message);
     },
 
     async interact(interaction, client) {
         const lang = interaction.options.getString('language') || 'en';
         const text = interaction.options.getString('text');
-        if (!text) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Please provide text or use `l!tr` by replying to a message.', color: THEME.error })], flags: 64 });
+        if (!text) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Please provide text or use `l!tr` by replying to a message.', color: THEME.error })], flags: 64 });
         return this.run(client, interaction.guild, lang, text, interaction);
     },
 
     async run(client, guild, lang, text, context) {
         // Send the "thinking" message (works for both message and interaction)
-        const thinkingMsg = await context.reply({ embeds: [createEmbed({ description: '🔮 Deciphering the mortal tongue...', color: THEME.celestial })], fetchReply: true });
+        const thinkingMsg = await context.reply({ embeds: [createEmbed({ context: guild, description: '🔮 Deciphering the mortal tongue...', color: THEME.celestial })], fetchReply: true });
 
         try {
             const result = await translate(text, { to: lang });
@@ -70,7 +70,7 @@ module.exports = {
 
         } catch (error) {
             console.error('Translation Error:', error);
-            const errorEmbed = createEmbed({ description: '💀 Failed to translate. Ensure you used a valid language code (e.g., `en`, `es`, `fr`, `ja`).', color: THEME.error });
+            const errorEmbed = createEmbed({ context: guild, description: '💀 Failed to translate. Ensure you used a valid language code (e.g., `en`, `es`, `fr`, `ja`).', color: THEME.error });
             
             if (context.editReply) {
                 return context.editReply({ embeds: [errorEmbed] });

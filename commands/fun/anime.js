@@ -13,16 +13,16 @@ module.exports = {
 
     async execute(message, args, client) {
         const query = args.join(' ');
-        if (!query) return message.reply({ embeds: [createEmbed({ description: '⚠️ Please provide an anime name! Usage: `l!anime Naruto`', color: THEME.error })] });
+        if (!query) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Please provide an anime name! Usage: `l!anime Naruto`', color: THEME.error })] });
 
-        const msg = await message.reply({ embeds: [createEmbed({ description: '🔍 Searching the infernal archives...', color: THEME.accent })] });
+        const msg = await message.reply({ embeds: [createEmbed({ context: message, description: '🔍 Searching the infernal archives...', color: THEME.accent })] });
 
         try {
             const res = await axios.get(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(query)}&limit=1&sfw=true`);
             const anime = res.data.data[0];
 
             if (!anime) {
-                return msg.edit({ embeds: [createEmbed({ description: '❌ No anime found with that title.', color: THEME.error })] });
+                return msg.edit({ embeds: [createEmbed({ context: guild, description: '❌ No anime found with that title.', color: THEME.error })] });
             }
 
             return msg.edit({ embeds: [createEmbed({
@@ -39,7 +39,7 @@ module.exports = {
                 footer: { text: `💜 Members: ${anime.members?.toLocaleString() || 'N/A'}` }
             })] });
         } catch (e) {
-            return msg.edit({ embeds: [createEmbed({ description: '💀 Error fetching anime data. The API might be rate limited.', color: THEME.error })] });
+            return msg.edit({ embeds: [createEmbed({ context: guild, description: '💀 Error fetching anime data. The API might be rate limited.', color: THEME.error })] });
         }
     },
 
@@ -53,7 +53,7 @@ module.exports = {
             const anime = res.data.data[0];
 
             if (!anime) {
-                return interaction.editReply({ embeds: [createEmbed({ description: '❌ No anime found with that title.', color: THEME.error })] });
+                return interaction.editReply({ embeds: [createEmbed({ context: guild, description: '❌ No anime found with that title.', color: THEME.error })] });
             }
 
             return interaction.editReply({ embeds: [createEmbed({
@@ -70,7 +70,7 @@ module.exports = {
                 footer: { text: `💜 Members: ${anime.members?.toLocaleString() || 'N/A'}` }
             })] });
         } catch (e) {
-            return interaction.editReply({ embeds: [createEmbed({ description: '💀 Error fetching anime data. The API might be rate limited.', color: THEME.error })] });
+            return interaction.editReply({ embeds: [createEmbed({ context: guild, description: '💀 Error fetching anime data. The API might be rate limited.', color: THEME.error })] });
         }
     }
 };

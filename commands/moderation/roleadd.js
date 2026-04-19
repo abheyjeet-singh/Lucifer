@@ -11,13 +11,13 @@ module.exports = {
     async execute(message, args, client) {
         const target = message.mentions.members.first();
         const role = message.mentions.roles.first();
-        if (!target || !role) return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `roleadd @user @role`', color: THEME.error })] });
+        if (!target || !role) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use: `roleadd @user @role`', color: THEME.error })] });
         return this.run(client, message.guild, message.member, target, role, message);
     },
 
     async run(client, guild, moderator, target, role, context) {
-        if (target.roles.cache.has(role.id)) return context.reply({ embeds: [createEmbed({ description: '⚠️ That soul already bears this role.', color: THEME.error })] });
-        if (role.position >= guild.members.me.roles.highest.position) return context.reply({ embeds: [createEmbed({ description: '🚫 I cannot bestow a role equal to or above my own.', color: THEME.error })] });
+        if (target.roles.cache.has(role.id)) return context.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ That soul already bears this role.', color: THEME.error })] });
+        if (role.position >= guild.members.me.roles.highest.position) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 I cannot bestow a role equal to or above my own.', color: THEME.error })] });
 
         await target.roles.add(role, `${moderator.user.tag}`);
 
@@ -27,6 +27,6 @@ module.exports = {
             color: THEME.success,
         }));
 
-        return context.reply({ embeds: [createEmbed({ description: `🎭 **${role.name}** has been bestowed upon **${target.user.tag}**.`, color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: `🎭 **${role.name}** has been bestowed upon **${target.user.tag}**.`, color: THEME.success })] });
     },
 };

@@ -22,7 +22,7 @@ module.exports = {
     async execute(message, args, client) {
         const sub = args[0]?.toLowerCase();
         if (sub === 'show' || !sub) return this.show(client, message.guild, message);
-        return message.reply({ embeds: [createEmbed({ description: '⚠️ Please use Slash Command for `/automod` configuration.', color: THEME.error })] });
+        return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Please use Slash Command for `/automod` configuration.', color: THEME.error })] });
     },
 
     async interact(interaction, client) {
@@ -47,10 +47,10 @@ module.exports = {
             if (action === 'add' && word) { automod.anti_badwords = true; if (!automod.badwords.includes(word)) automod.badwords.push(word); }
             else if (action === 'remove' && word) { automod.badwords = automod.badwords.filter(w => w !== word); }
             else if (action === 'clear') { automod.badwords = []; automod.anti_badwords = false; }
-            else if (action === 'list') { return interaction.reply({ embeds: [createEmbed({ description: `🛡️ Bad Words: ${automod.badwords.map(w => `\`${w}\``).join(', ') || 'None'}` })], ephemeral: true }); }
+            else if (action === 'list') { return interaction.reply({ embeds: [createEmbed({ context: interaction, description: `🛡️ Bad Words: ${automod.badwords.map(w => `\`${w}\``).join(', ') || 'None'}` })], ephemeral: true }); }
         }
 
         setAutomod(interaction.guild.id, automod);
-        return interaction.reply({ embeds: [createEmbed({ description: `🛡️ Anti-Sin settings updated.`, color: THEME.success })] });
+        return interaction.reply({ embeds: [createEmbed({ context: interaction, description: `🛡️ Anti-Sin settings updated.`, color: THEME.success })] });
     },
 };

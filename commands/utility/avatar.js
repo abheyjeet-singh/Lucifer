@@ -24,6 +24,7 @@ module.exports = {
 
     async run(client, target, context) {
         return context.reply({ embeds: [createEmbed({
+            context: context,
             title: `🖼️ ${target.tag}'s Visage`,
             image: target.displayAvatarURL({ size: 1024, dynamic: true }),
             color: THEME.celestial,

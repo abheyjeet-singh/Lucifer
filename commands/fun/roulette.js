@@ -21,14 +21,14 @@ module.exports = {
         const eco = getUserEconomy(message.guild.id, message.author.id);
         const bet = amountInput.toLowerCase() === 'all' || amountInput.toLowerCase() === 'max' ? eco.wallet : parseInt(amountInput);
 
-        if (isNaN(bet) || bet <= 0) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid bet amount.', color: THEME.error })] });
-        if (eco.wallet < bet) return message.reply({ embeds: [createEmbed({ description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })] });
+        if (isNaN(bet) || bet <= 0) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid bet amount.', color: THEME.error })] });
+        if (eco.wallet < bet) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })] });
 
         eco.wallet -= bet;
         updateUserEconomy(message.guild.id, message.author.id, eco);
 
         const colorEmoji = colorInput === 'red' ? '🔴' : colorInput === 'black' ? '⚫' : '🟢';
-        const roulMsg = await message.reply({ embeds: [createEmbed({ title: '🎡 Devil\'s Roulette', description: `> 🔄 The wheel is spinning...\n\n💸 Bet: **${bet.toLocaleString()} LC**\n🎯 Choice: **${colorEmoji} ${colorInput.charAt(0).toUpperCase() + colorInput.slice(1)}**`, color: THEME.celestial, footer: { text: '🔥 The Devil\'s Casino' } })] });
+        const roulMsg = await message.reply({ embeds: [createEmbed({ context: message, title: '🎡 Devil\'s Roulette', description: `> 🔄 The wheel is spinning...\n\n💸 Bet: **${bet.toLocaleString()} LC**\n🎯 Choice: **${colorEmoji} ${colorInput.charAt(0).toUpperCase() + colorInput.slice(1)}**`, color: THEME.celestial, footer: { text: '🔥 The Devil\'s Casino' } })] });
 
         await sleep(3000);
 
@@ -51,7 +51,7 @@ module.exports = {
             desc = `> The ball landed on ${resultEmoji} **${resultColor}**!\n\n💀 **You Lost!**\n💸 **-${bet.toLocaleString()} LC**`;
         }
 
-        await roulMsg.edit({ embeds: [createEmbed({ title: '🎡 Devil\'s Roulette', description: `${desc}\n💳 Wallet: **${eco.wallet.toLocaleString()} LC**`, color: won ? THEME.success : THEME.error, footer: { text: '🔥 The Devil\'s Casino' } })] });
+        await roulMsg.edit({ embeds: [createEmbed({ context: guild, title: '🎡 Devil\'s Roulette', description: `${desc}\n💳 Wallet: **${eco.wallet.toLocaleString()} LC**`, color: won ? THEME.success : THEME.error, footer: { text: '🔥 The Devil\'s Casino' } })] });
     },
 
     async interact(interaction, client) {
@@ -60,8 +60,8 @@ module.exports = {
         const eco = getUserEconomy(interaction.guild.id, interaction.user.id);
         const bet = amountInput.toLowerCase() === 'all' || amountInput.toLowerCase() === 'max' ? eco.wallet : parseInt(amountInput);
 
-        if (isNaN(bet) || bet <= 0) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid bet amount.', color: THEME.error })], flags: 64 });
-        if (eco.wallet < bet) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })], flags: 64 });
+        if (isNaN(bet) || bet <= 0) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Invalid bet amount.', color: THEME.error })], flags: 64 });
+        if (eco.wallet < bet) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Not enough Lux Coins in your wallet!', color: THEME.error })], flags: 64 });
 
         eco.wallet -= bet;
         updateUserEconomy(interaction.guild.id, interaction.user.id, eco);
@@ -69,7 +69,7 @@ module.exports = {
 
         const roulMsg = await interaction.fetchReply();
         const colorEmoji = colorInput === 'red' ? '🔴' : colorInput === 'black' ? '⚫' : '🟢';
-        await roulMsg.edit({ embeds: [createEmbed({ title: '🎡 Devil\'s Roulette', description: `> 🔄 The wheel is spinning...\n\n💸 Bet: **${bet.toLocaleString()} LC**\n🎯 Choice: **${colorEmoji} ${colorInput.charAt(0).toUpperCase() + colorInput.slice(1)}**`, color: THEME.celestial, footer: { text: '🔥 The Devil\'s Casino' } })] });
+        await roulMsg.edit({ embeds: [createEmbed({ context: guild, title: '🎡 Devil\'s Roulette', description: `> 🔄 The wheel is spinning...\n\n💸 Bet: **${bet.toLocaleString()} LC**\n🎯 Choice: **${colorEmoji} ${colorInput.charAt(0).toUpperCase() + colorInput.slice(1)}**`, color: THEME.celestial, footer: { text: '🔥 The Devil\'s Casino' } })] });
 
         await sleep(3000);
 
@@ -92,7 +92,7 @@ module.exports = {
             desc = `> The ball landed on ${resultEmoji} **${resultColor}**!\n\n💀 **You Lost!**\n💸 **-${bet.toLocaleString()} LC**`;
         }
 
-        await interaction.editReply({ embeds: [createEmbed({ title: '🎡 Devil\'s Roulette', description: `${desc}\n💳 Wallet: **${eco.wallet.toLocaleString()} LC**`, color: won ? THEME.success : THEME.error, footer: { text: '🔥 The Devil\'s Casino' } })] });
+        await interaction.editReply({ embeds: [createEmbed({ context: guild, title: '🎡 Devil\'s Roulette', description: `${desc}\n💳 Wallet: **${eco.wallet.toLocaleString()} LC**`, color: won ? THEME.success : THEME.error, footer: { text: '🔥 The Devil\'s Casino' } })] });
     }
 };
 

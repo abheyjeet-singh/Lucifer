@@ -28,7 +28,7 @@ module.exports = {
         if (!sub || sub === 'show') return this.show(client, message.guild, message);
         if (sub === 'enable') return this.enable(client, message.guild, message.member, message);
         if (sub === 'disable') return this.disable(client, message.guild, message.member, message);
-        return message.reply({ embeds: [createEmbed({ description: '⚠️ Use: `l!aimode enable/disable/show`', color: THEME.error })] });
+        return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Use: `l!aimode enable/disable/show`', color: THEME.error })] });
     },
 
     async interact(interaction, client) {
@@ -39,17 +39,17 @@ module.exports = {
     },
 
     async enable(client, guild, member, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Only administrators may configure AI mode.', color: THEME.error })] });
-        if (isAiMentionEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ description: '🔥 AI mention mode is already enabled.', color: THEME.dark })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only administrators may configure AI mode.', color: THEME.error })] });
+        if (isAiMentionEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ context: guild, description: '🔥 AI mention mode is already enabled.', color: THEME.dark })] });
         setAiMentionEnabled(guild.id, true);
-        return context.reply({ embeds: [createEmbed({ description: '🔥 **AI Mention Mode Enabled.** Mention me in any message and I will respond — and act.\n\nExamples:\n• `@Lucifer mute @user he disrespected me for 10min`\n• `@Lucifer kick @user spamming`\n• `@Lucifer clear 5 messages`\n• `@Lucifer who is @user?`\n\nUse `/aimode disable` to turn off.', color: THEME.success })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: '🔥 **AI Mention Mode Enabled.** Mention me in any message and I will respond — and act.\n\nExamples:\n• `@Lucifer mute @user he disrespected me for 10min`\n• `@Lucifer kick @user spamming`\n• `@Lucifer clear 5 messages`\n• `@Lucifer who is @user?`\n\nUse `/aimode disable` to turn off.', color: THEME.success })] });
     },
 
     async disable(client, guild, member, context) {
-        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ description: '🚫 Only administrators may configure AI mode.', color: THEME.error })] });
-        if (!isAiMentionEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ description: '🔥 AI mention mode is already disabled.', color: THEME.dark })] });
+        if (!hasPermission(member, 'Administrator')) return context.reply({ embeds: [createEmbed({ context: guild, description: '🚫 Only administrators may configure AI mode.', color: THEME.error })] });
+        if (!isAiMentionEnabled(guild.id)) return context.reply({ embeds: [createEmbed({ context: guild, description: '🔥 AI mention mode is already disabled.', color: THEME.dark })] });
         setAiMentionEnabled(guild.id, false);
-        return context.reply({ embeds: [createEmbed({ description: '🔥 **AI Mention Mode Disabled.** I will no longer respond to mentions with AI.', color: THEME.primary })] });
+        return context.reply({ embeds: [createEmbed({ context: guild, description: '🔥 **AI Mention Mode Disabled.** I will no longer respond to mentions with AI.', color: THEME.primary })] });
     },
 
     async show(client, guild, context) {

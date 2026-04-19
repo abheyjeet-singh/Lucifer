@@ -17,8 +17,8 @@ module.exports = {
         const amountInput = args[1];
 
         if (!target) return message.reply('⚠️ Usage: `l!send @user <amount | all>`');
-        if (target.id === message.author.id) return message.reply({ embeds: [createEmbed({ description: '⚠️ You cannot send coins to yourself!', color: THEME.error })] });
-        if (target.bot) return message.reply({ embeds: [createEmbed({ description: '⚠️ Bots don\'t have souls to hold Lux Coins!', color: THEME.error })] });
+        if (target.id === message.author.id) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ You cannot send coins to yourself!', color: THEME.error })] });
+        if (target.bot) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Bots don\'t have souls to hold Lux Coins!', color: THEME.error })] });
         if (!amountInput) return message.reply('⚠️ Usage: `l!send @user <amount | all>`');
 
         const senderEco = getUserEconomy(message.guild.id, message.author.id);
@@ -26,8 +26,8 @@ module.exports = {
         
         const amount = amountInput.toLowerCase() === 'all' || amountInput.toLowerCase() === 'max' ? senderEco.wallet : parseInt(amountInput);
 
-        if (isNaN(amount) || amount <= 0) return message.reply({ embeds: [createEmbed({ description: '⚠️ Invalid amount.', color: THEME.error })] });
-        if (senderEco.wallet < amount) return message.reply({ embeds: [createEmbed({ description: '⚠️ You don\'t have enough Lux Coins in your wallet!', color: THEME.error })] });
+        if (isNaN(amount) || amount <= 0) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Invalid amount.', color: THEME.error })] });
+        if (senderEco.wallet < amount) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ You don\'t have enough Lux Coins in your wallet!', color: THEME.error })] });
 
         senderEco.wallet -= amount;
         receiverEco.wallet += amount;
@@ -51,16 +51,16 @@ module.exports = {
         const target = interaction.options.getUser('target');
         const amountInput = interaction.options.getString('amount');
 
-        if (target.id === interaction.user.id) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ You cannot send coins to yourself!', color: THEME.error })], flags: 64 });
-        if (target.bot) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Bots don\'t have souls to hold Lux Coins!', color: THEME.error })], flags: 64 });
+        if (target.id === interaction.user.id) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ You cannot send coins to yourself!', color: THEME.error })], flags: 64 });
+        if (target.bot) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Bots don\'t have souls to hold Lux Coins!', color: THEME.error })], flags: 64 });
 
         const senderEco = getUserEconomy(interaction.guild.id, interaction.user.id);
         const receiverEco = getUserEconomy(interaction.guild.id, target.id);
         
         const amount = amountInput.toLowerCase() === 'all' || amountInput.toLowerCase() === 'max' ? senderEco.wallet : parseInt(amountInput);
 
-        if (isNaN(amount) || amount <= 0) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Invalid amount.', color: THEME.error })], flags: 64 });
-        if (senderEco.wallet < amount) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ You don\'t have enough Lux Coins in your wallet!', color: THEME.error })], flags: 64 });
+        if (isNaN(amount) || amount <= 0) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Invalid amount.', color: THEME.error })], flags: 64 });
+        if (senderEco.wallet < amount) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ You don\'t have enough Lux Coins in your wallet!', color: THEME.error })], flags: 64 });
 
         senderEco.wallet -= amount;
         receiverEco.wallet += amount;

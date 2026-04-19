@@ -24,7 +24,7 @@ module.exports = {
     },
 
     async run(client, guild, target, context) {
-        await context.reply({ embeds: [createEmbed({ description: '📜 Scrolling through the ancient records...', color: THEME.celestial })] });
+        await context.reply({ embeds: [createEmbed({ context: guild, description: '📜 Scrolling through the ancient records...', color: THEME.celestial })] });
 
         // 1. Fetch Data from our Database
         const warnings = getWarnings(guild.id, target.id);

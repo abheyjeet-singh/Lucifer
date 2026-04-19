@@ -23,6 +23,7 @@ module.exports = {
     async run(client, context) {
         const quote = quotes[Math.floor(Math.random() * quotes.length)];
         return context.reply({ embeds: [createEmbed({
+            context: context,
             description: `🔥 *"${quote}"*\n— Lucifer Morningstar`,
             color: THEME.primary,
         })] });

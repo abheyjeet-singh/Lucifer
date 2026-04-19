@@ -24,8 +24,8 @@ module.exports = {
         const target = message.mentions.users.first();
         if (!target) return message.reply('⚠️ Usage: `l!rps @user`');
         
-        if (target.id === message.author.id) return message.reply({ embeds: [createEmbed({ description: '⚠️ You cannot challenge yourself!', color: THEME.error })] });
-        if (target.bot) return message.reply({ embeds: [createEmbed({ description: '⚠️ Bots cannot play!', color: THEME.error })] });
+        if (target.id === message.author.id) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ You cannot challenge yourself!', color: THEME.error })] });
+        if (target.bot) return message.reply({ embeds: [createEmbed({ context: message, description: '⚠️ Bots cannot play!', color: THEME.error })] });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`rps_accept_${message.author.id}_${target.id}`).setLabel('⚔️ Accept Challenge').setStyle(ButtonStyle.Success),
@@ -49,8 +49,8 @@ module.exports = {
     async interact(interaction, client) {
         const target = interaction.options.getUser('target');
         
-        if (target.id === interaction.user.id) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ You cannot challenge yourself!', color: THEME.error })], flags: 64 });
-        if (target.bot) return interaction.reply({ embeds: [createEmbed({ description: '⚠️ Bots cannot play!', color: THEME.error })], flags: 64 });
+        if (target.id === interaction.user.id) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ You cannot challenge yourself!', color: THEME.error })], flags: 64 });
+        if (target.bot) return interaction.reply({ embeds: [createEmbed({ context: interaction, description: '⚠️ Bots cannot play!', color: THEME.error })], flags: 64 });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`rps_accept_${interaction.user.id}_${target.id}`).setLabel('⚔️ Accept Challenge').setStyle(ButtonStyle.Success),
@@ -100,15 +100,15 @@ function startRPSGame(msg, p1, p2, guildId) {
 
                 const modalSubmit = await i.awaitModalSubmit({ time: 60000 }).catch(() => null);
                 if (!modalSubmit) {
-                    return msg.edit({ components: [], embeds: [createEmbed({ title: '⚔️ RPS', description: '⏳ Timed out waiting for bet.', color: THEME.accent })] });
+                    return msg.edit({ components: [], embeds: [createEmbed({ context: guild, title: '⚔️ RPS', description: '⏳ Timed out waiting for bet.', color: THEME.accent })] });
                 }
 
                 const amountStr = modalSubmit.fields.getTextInputValue('bet_amount');
                 const p2Eco = getUserEconomy(guildId, p2.id);
                 const bet = amountStr.toLowerCase() === 'all' ? p2Eco.wallet : parseInt(amountStr);
 
-                if (isNaN(bet) || bet <= 0) return modalSubmit.reply({ embeds: [createEmbed({ description: '⚠️ Invalid amount. Challenge cancelled.', color: THEME.error })], ephemeral: true });
-                if (p2Eco.wallet < bet) return modalSubmit.reply({ embeds: [createEmbed({ description: '⚠️ Not enough LC! Challenge cancelled.', color: THEME.error })], ephemeral: true });
+                if (isNaN(bet) || bet <= 0) return modalSubmit.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Invalid amount. Challenge cancelled.', color: THEME.error })], ephemeral: true });
+                if (p2Eco.wallet < bet) return modalSubmit.reply({ embeds: [createEmbed({ context: guild, description: '⚠️ Not enough LC! Challenge cancelled.', color: THEME.error })], ephemeral: true });
 
                 p2Eco.wallet -= bet;
                 updateUserEconomy(guildId, p2.id, p2Eco);
@@ -142,7 +142,7 @@ function startRPSGame(msg, p1, p2, guildId) {
                     p2Eco.wallet += currentBet;
                     updateUserEconomy(guildId, p2.id, p2Eco);
                     currentBet = 0; 
-                    return msg.edit({ components: [], embeds: [createEmbed({ title: '⚔️ RPS', description: `⚠️ ${p1.username} doesn't have enough LC! Bet refunded to ${p2.username}.`, color: THEME.error })] });
+                    return msg.edit({ components: [], embeds: [createEmbed({ context: guild, title: '⚔️ RPS', description: `⚠️ ${p1.username} doesn't have enough LC! Bet refunded to ${p2.username}.`, color: THEME.error })] });
                 }
 
                 p1Eco.wallet -= currentBet;
@@ -215,11 +215,11 @@ function startRPSGame(msg, p1, p2, guildId) {
 
     collector.on('end', async (collected, reason) => {
         if (reason === 'declined') {
-            return msg.edit({ components: [], embeds: [createEmbed({ title: '⚔️ RPS', description: '🚫 Challenge declined.', color: THEME.accent })] }).catch(() => {});
+            return msg.edit({ components: [], embeds: [createEmbed({ context: guild, title: '⚔️ RPS', description: '🚫 Challenge declined.', color: THEME.accent })] }).catch(() => {});
         }
         
         if (reason === 'game_finished') {
-            await msg.edit({ components: [], embeds: [createEmbed({ title: '⚔️ Rock Paper Scissors', description: `🔥 Reveal in...`, color: THEME.primary })] });
+            await msg.edit({ components: [], embeds: [createEmbed({ context: guild, title: '⚔️ Rock Paper Scissors', description: `🔥 Reveal in...`, color: THEME.primary })] });
             await sleep(2000);
 
             let winner = null;
@@ -260,7 +260,7 @@ function startRPSGame(msg, p1, p2, guildId) {
                 const p1Eco = getUserEconomy(guildId, p1.id); p1Eco.wallet += currentBet; updateUserEconomy(guildId, p1.id, p1Eco);
                 const p2Eco = getUserEconomy(guildId, p2.id); p2Eco.wallet += currentBet; updateUserEconomy(guildId, p2.id, p2Eco);
             }
-            msg.edit({ components: [], embeds: [createEmbed({ title: '⚔️ RPS', description: '⏳ Game timed out. Bets refunded.', color: THEME.accent })] }).catch(() => {});
+            msg.edit({ components: [], embeds: [createEmbed({ context: guild, title: '⚔️ RPS', description: '⏳ Game timed out. Bets refunded.', color: THEME.accent })] }).catch(() => {});
         }
     });
 }
